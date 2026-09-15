@@ -1,0 +1,6 @@
+{
+  "name": "StudySpace Manager",
+  "description": "Mobile-first study hall and reading room management application for Tier 2 and Tier 3 study centres.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

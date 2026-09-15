@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="none">
+  <rect width="512" height="512" rx="128" fill="#1e293b"/>
+  <rect x="96" y="240" width="320" height="28" rx="8" fill="#38bdf8"/>
+  <rect x="128" y="268" width="24" height="140" rx="6" fill="#94a3b8"/>
+  <rect x="360" y="268" width="24" height="140" rx="6" fill="#94a3b8"/>
+  <!-- Lamp / study light -->
+  <path d="M160 240V140C160 120 180 100 210 100H270" stroke="#f8fafc" stroke-width="20" stroke-linecap="round"/>
+  <path d="M260 80L310 110L250 140Z" fill="#38bdf8"/>
+  <path d="M265 140L330 230" stroke="#f8fafc" stroke-width="10" stroke-dasharray="12 12" stroke-linecap="round" opacity="0.6"/>
+  <!-- Chair / desk seat symbol -->
+  <circle cx="320" cy="200" r="28" fill="#f8fafc"/>
+  <path d="M288 320V260C288 244 300 232 316 232H324C340 232 352 244 352 260V320" stroke="#f8fafc" stroke-width="16" stroke-linecap="round"/>
+</svg>

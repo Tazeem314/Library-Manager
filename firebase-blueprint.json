@@ -1,0 +1,131 @@
+{
+  "entities": {
+    "UserProfile": {
+      "path": "/users/{userId}",
+      "description": "User profile for library managers and owners authenticated via Google/Gmail",
+      "fields": {
+        "uid": { "type": "string", "required": true },
+        "email": { "type": "string", "required": true },
+        "displayName": { "type": "string", "required": false },
+        "photoURL": { "type": "string", "required": false },
+        "createdAt": { "type": "string", "required": true },
+        "lastLoginAt": { "type": "string", "required": true }
+      }
+    },
+    "Business": {
+      "path": "/users/{userId}/settings/business",
+      "description": "Study Hall / Library business profile details and UPI payment configuration",
+      "fields": {
+        "name": { "type": "string", "required": true },
+        "ownerName": { "type": "string", "required": true },
+        "phone": { "type": "string", "required": true },
+        "email": { "type": "string", "required": false },
+        "address": { "type": "string", "required": false },
+        "upiId": { "type": "string", "required": false },
+        "updatedAt": { "type": "string", "required": true }
+      }
+    },
+    "Seat": {
+      "path": "/users/{userId}/seats/{seatId}",
+      "description": "Library study seats and cabins",
+      "fields": {
+        "id": { "type": "string", "required": true },
+        "seatNumber": { "type": "string", "required": true },
+        "row": { "type": "string", "required": true },
+        "status": { "type": "string", "required": true },
+        "hasPower": { "type": "boolean", "required": false },
+        "isCorner": { "type": "boolean", "required": false },
+        "isPremium": { "type": "boolean", "required": false }
+      }
+    },
+    "Student": {
+      "path": "/users/{userId}/students/{studentId}",
+      "description": "Enrolled library student records",
+      "fields": {
+        "id": { "type": "string", "required": true },
+        "fullName": { "type": "string", "required": true },
+        "phone": { "type": "string", "required": true },
+        "email": { "type": "string", "required": false },
+        "studentId": { "type": "string", "required": false },
+        "status": { "type": "string", "required": true },
+        "createdAt": { "type": "string", "required": true }
+      }
+    },
+    "Shift": {
+      "path": "/users/{userId}/shifts/{shiftId}",
+      "description": "Study hall time slots and operating shifts",
+      "fields": {
+        "id": { "type": "string", "required": true },
+        "name": { "type": "string", "required": true },
+        "startTime": { "type": "string", "required": true },
+        "endTime": { "type": "string", "required": true },
+        "active": { "type": "boolean", "required": true }
+      }
+    },
+    "MembershipPlan": {
+      "path": "/users/{userId}/plans/{planId}",
+      "description": "Subscription fee plans for seat bookings",
+      "fields": {
+        "id": { "type": "string", "required": true },
+        "name": { "type": "string", "required": true },
+        "durationDays": { "type": "number", "required": true },
+        "price": { "type": "number", "required": true },
+        "active": { "type": "boolean", "required": true }
+      }
+    },
+    "Membership": {
+      "path": "/users/{userId}/memberships/{membershipId}",
+      "description": "Active and past seat booking records",
+      "fields": {
+        "id": { "type": "string", "required": true },
+        "studentId": { "type": "string", "required": true },
+        "seatId": { "type": "string", "required": true },
+        "shiftId": { "type": "string", "required": true },
+        "planId": { "type": "string", "required": true },
+        "planName": { "type": "string", "required": true },
+        "startDate": { "type": "string", "required": true },
+        "endDate": { "type": "string", "required": true },
+        "totalAmount": { "type": "number", "required": true },
+        "paidAmount": { "type": "number", "required": true },
+        "outstandingAmount": { "type": "number", "required": true },
+        "status": { "type": "string", "required": true }
+      }
+    },
+    "Payment": {
+      "path": "/users/{userId}/payments/{paymentId}",
+      "description": "Recorded student fee payment transactions",
+      "fields": {
+        "id": { "type": "string", "required": true },
+        "studentId": { "type": "string", "required": true },
+        "membershipId": { "type": "string", "required": true },
+        "amount": { "type": "number", "required": true },
+        "date": { "type": "string", "required": true },
+        "method": { "type": "string", "required": true },
+        "reference": { "type": "string", "required": false },
+        "receiptNumber": { "type": "string", "required": true }
+      }
+    },
+    "Expense": {
+      "path": "/users/{userId}/expenses/{expenseId}",
+      "description": "Study hall operating expenditure records",
+      "fields": {
+        "id": { "type": "string", "required": true },
+        "title": { "type": "string", "required": true },
+        "amount": { "type": "number", "required": true },
+        "category": { "type": "string", "required": true },
+        "date": { "type": "string", "required": true },
+        "paymentMode": { "type": "string", "required": true }
+      }
+    }
+  },
+  "securityRules": {
+    "users": {
+      "read": "request.auth != null && request.auth.uid == userId",
+      "write": "request.auth != null && request.auth.uid == userId"
+    },
+    "subcollections": {
+      "read": "request.auth != null && request.auth.uid == userId",
+      "write": "request.auth != null && request.auth.uid == userId"
+    }
+  }
+}

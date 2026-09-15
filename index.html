@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Figtree:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400&family=Outfit:wght@500;600;700;800&display=swap" rel="stylesheet" />
+    <title>StudySpace Manager</title>
+    <meta name="description" content="Mobile-first study hall and reading room management application for Tier 2 and Tier 3 study centres." />
+    <meta property="og:title" content="StudySpace Manager" />
+    <meta property="og:description" content="Mobile-first study hall and reading room management application for Tier 2 and Tier 3 study centres." />
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="theme-color" content="#0f172a" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="StudySpace" />
+    <link rel="apple-touch-icon" href="./apple-touch-icon.png" />
+    <link rel="icon" type="image/png" sizes="32x32" href="./favicon-32x32.png" />
+    <link rel="icon" type="image/svg+xml" href="./icon.svg" />
+    <link rel="manifest" href="./manifest.webmanifest" />
+    <script>
+      (function() {
+        try {
+          const stored = localStorage.getItem('studyspace_theme');
+          const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+          const isDark = stored === 'dark' || (!stored && prefersDark);
+          if (isDark) {
+            document.documentElement.classList.add('dark');
+            const meta = document.querySelector('meta[name="theme-color"]');
+            if (meta) meta.setAttribute('content', '#090d15');
+          } else {
+            document.documentElement.classList.remove('dark');
+          }
+        } catch (e) {}
+      })();
+    </script>
+    <style>
+      html.dark body {
+        background-color: #090d15;
+        color: #f8fafc;
+      }
+      @keyframes spin-slow {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+      }
+      .app-loader-spinner {
+        animation: spin-slow 1s linear infinite;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root">
+      <div id="initial-loader" style="min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; background-color: #f8fafc; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; padding: 24px; text-align: center;">
+        <div style="position: relative; margin-bottom: 20px;">
+          <div style="width: 56px; height: 56px; border-radius: 16px; background: linear-gradient(135deg, #2563eb, #1d4ed8); display: flex; align-items: center; justify-content: center; box-shadow: 0 10px 25px -5px rgba(37, 99, 235, 0.4);">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1-2.5-2.5Z"></path>
+              <path d="M6 6h10"></path>
+              <path d="M6 10h10"></path>
+            </svg>
+          </div>
+        </div>
+        <h1 style="font-size: 20px; font-weight: 700; color: #0f172a; margin: 0 0 6px 0; letter-spacing: -0.02em;">StudySpace Manager</h1>
+        <p style="font-size: 13px; color: #64748b; margin: 0 0 24px 0; font-weight: 500;">Study hall, reading library &amp; seat booking</p>
+        <div style="display: flex; align-items: center; gap: 8px; font-size: 13px; color: #2563eb; font-weight: 600;">
+          <svg class="app-loader-spinner" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <path d="M21 12a9 9 0 1 1-6.219-8.56"></path>
+          </svg>
+          <span>Loading workspace...</span>
+        </div>
+        <div id="loader-fallback" style="display: none; margin-top: 24px; padding: 14px 18px; background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; max-width: 340px; box-shadow: 0 4px 12px rgba(0,0,0,0.05);">
+          <p id="loader-fallback-title" style="font-size: 13px; font-weight: 600; color: #334155; margin: 0 0 6px 0;">Taking longer than usual to load?</p>
+          <p id="loader-error-text" style="display: none; font-size: 11px; color: #ef4444; margin: 0 0 10px 0; word-break: break-all; font-family: monospace;"></p>
+          <button onclick="try{localStorage.clear();sessionStorage.clear();}catch(e){}location.reload();" style="background-color: #2563eb; color: #ffffff; border: none; padding: 8px 16px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; width: 100%;">
+            Refresh Workspace
+          </button>
+        </div>
+      </div>
+    </div>
+    <script>
+      // Capture uncaught script errors and show helpful diagnostic
+      window.addEventListener('error', function(e) {
+        var fallback = document.getElementById('loader-fallback');
+        var errText = document.getElementById('loader-error-text');
+        if (fallback) {
+          fallback.style.display = 'block';
+          if (errText && e) {
+            errText.textContent = e.message || 'Script failed to load';
+            errText.style.display = 'block';
+          }
+        }
+      });
+      // Clear any legacy service workers that might cache stale files in preview frames
+      try {
+        if ('serviceWorker' in navigator && (window.self !== window.top || location.hostname.includes('run.app'))) {
+          navigator.serviceWorker.getRegistrations().then(function(regs) {
+            for (var i = 0; i < regs.length; i++) {
+              regs[i].unregister();
+            }
+          }).catch(function() {});
+        }
+      } catch (e) {}
+
+      // Show recovery button if loader is still present after 3 seconds
+      setTimeout(function() {
+        var fallback = document.getElementById('loader-fallback');
+        if (fallback && document.getElementById('initial-loader')) {
+          fallback.style.display = 'block';
+        }
+      }, 3000);
+
+      // Dark mode support for initial loader
+      try {
+        if (document.documentElement.classList.contains('dark')) {
+          var loader = document.getElementById('initial-loader');
+          if (loader) {
+            loader.style.backgroundColor = '#090d15';
+            loader.querySelector('h1').style.color = '#f8fafc';
+            loader.querySelector('p').style.color = '#94a3b8';
+          }
+        }
+      } catch (e) {}
+    </script>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
+
