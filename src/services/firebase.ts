@@ -19,6 +19,78 @@ import {
 import firebaseConfig from '../../firebase-applet-config.json';
 import { AppState } from '../types';
 
+export interface FirebaseConfigParams {
+  apiKey: string;
+  authDomain: string;
+  projectId: string;
+  storageBucket?: string;
+  messagingSenderId?: string;
+  appId?: string;
+  firestoreDatabaseId?: string;
+}
+
+const CUSTOM_CONFIG_KEY = 'studyspace_custom_firebase_config';
+
+export function getStoredCustomFirebaseConfig(): FirebaseConfigParams | null {
+  try {
+    const raw = localStorage.getItem(CUSTOM_CONFIG_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed.apiKey === 'string' && parsed.apiKey.trim() && parsed.projectId) {
+        return parsed;
+      }
+    }
+  } catch (e) {
+    console.warn('Failed to parse custom firebase config from localStorage:', e);
+  }
+  return null;
+}
+
+export function saveCustomFirebaseConfig(config: FirebaseConfigParams): void {
+  localStorage.setItem(CUSTOM_CONFIG_KEY, JSON.stringify(config));
+  window.location.reload();
+}
+
+export function clearCustomFirebaseConfig(): void {
+  localStorage.removeItem(CUSTOM_CONFIG_KEY);
+  window.location.reload();
+}
+
+export function getActiveFirebaseConfig(): FirebaseConfigParams {
+  const custom = getStoredCustomFirebaseConfig();
+  if (custom) return custom;
+
+  // Check for explicit VITE_FIREBASE_API_KEY override if provided (e.g. in custom build envs)
+  const metaEnv = (import.meta as unknown as { env?: Record<string, string> }).env || {};
+  const procEnv = typeof process !== 'undefined' && process.env ? process.env : {};
+
+  const explicitFirebaseApiKey =
+    metaEnv.VITE_FIREBASE_API_KEY ||
+    procEnv.VITE_FIREBASE_API_KEY;
+
+  if (explicitFirebaseApiKey) {
+    const envProjectId =
+      metaEnv.VITE_FIREBASE_PROJECT_ID ||
+      procEnv.VITE_FIREBASE_PROJECT_ID ||
+      firebaseConfig.projectId;
+
+    return {
+      apiKey: explicitFirebaseApiKey,
+      authDomain: metaEnv.VITE_FIREBASE_AUTH_DOMAIN || procEnv.VITE_FIREBASE_AUTH_DOMAIN || `${envProjectId}.firebaseapp.com`,
+      projectId: envProjectId,
+      storageBucket: metaEnv.VITE_FIREBASE_STORAGE_BUCKET || procEnv.VITE_FIREBASE_STORAGE_BUCKET || `${envProjectId}.firebasestorage.app`,
+      appId: metaEnv.VITE_FIREBASE_APP_ID || procEnv.VITE_FIREBASE_APP_ID || firebaseConfig.appId,
+      messagingSenderId: metaEnv.VITE_FIREBASE_MESSAGING_SENDER_ID || procEnv.VITE_FIREBASE_MESSAGING_SENDER_ID || firebaseConfig.messagingSenderId,
+      firestoreDatabaseId: firebaseConfig.firestoreDatabaseId || '(default)',
+    };
+  }
+
+  // Always fallback to the official provisioned Firebase config from firebase-applet-config.json
+  return firebaseConfig as FirebaseConfigParams;
+}
+
+const activeConfig = getActiveFirebaseConfig();
+
 // Safely initialize Firebase App singleton without throwing top-level errors
 let app: FirebaseApp | null = null;
 export let auth: Auth | null = null;
@@ -26,16 +98,13 @@ export let googleProvider: GoogleAuthProvider | null = null;
 export let db: Firestore | null = null;
 
 try {
-  app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
+  app = getApps().length > 0 ? getApp() : initializeApp(activeConfig);
   auth = getAuth(app);
   googleProvider = new GoogleAuthProvider();
-  googleProvider.setCustomParameters({
-    prompt: 'select_account',
-  });
   db =
-    firebaseConfig.firestoreDatabaseId &&
-    firebaseConfig.firestoreDatabaseId !== '(default)'
-      ? getFirestore(app, firebaseConfig.firestoreDatabaseId)
+    activeConfig.firestoreDatabaseId &&
+    activeConfig.firestoreDatabaseId !== '(default)'
+      ? getFirestore(app, activeConfig.firestoreDatabaseId)
       : getFirestore(app);
 } catch (e) {
   console.warn('Firebase initialization skipped or fell back to local offline mode:', e);
@@ -106,6 +175,9 @@ export async function signInWithGoogle(): Promise<FirebaseUser> {
     }
     if (err.code === 'auth/network-request-failed') {
       throw new Error('Network connection issue. Please check your internet connection.');
+    }
+    if (err.code === 'auth/api-key-expired' || (err.message && err.message.toLowerCase().includes('api key expired'))) {
+      throw new Error('Google Firebase project API key needs renewal. In the meantime, your study hall data is safely saved on this device, and you can download offline backups from Settings.');
     }
     if (err.code === 'auth/unauthorized-domain') {
       throw new Error('This domain is awaiting Firebase OAuth authorization. Please open the app in a new tab to test.');

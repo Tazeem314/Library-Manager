@@ -74,6 +74,55 @@ export function loadSampleDemoState(): AppState {
   return sample;
 }
 
+/**
+ * Export current app state to a downloadable JSON file
+ */
+export function exportAppStateToJson(state: AppState): void {
+  try {
+    const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(state, null, 2));
+    const downloadAnchor = document.createElement('a');
+    const dateStr = new Date().toISOString().slice(0, 10);
+    const sanitizedName = (state.business.name || 'studyspace').replace(/[^a-z0-9_-]/gi, '_').toLowerCase();
+    downloadAnchor.setAttribute('href', dataStr);
+    downloadAnchor.setAttribute('download', `${sanitizedName}_backup_${dateStr}.json`);
+    document.body.appendChild(downloadAnchor);
+    downloadAnchor.click();
+    downloadAnchor.remove();
+  } catch (err) {
+    console.error('Failed to export state to JSON:', err);
+    throw new Error('Could not generate backup file.');
+  }
+}
+
+/**
+ * Validate and restore state from parsed JSON
+ */
+export function validateAndRestoreState(parsed: unknown): AppState {
+  if (!parsed || typeof parsed !== 'object') {
+    throw new Error('Invalid backup file format.');
+  }
+  const candidate = parsed as Partial<AppState>;
+  if (!Array.isArray(candidate.seats) || candidate.seats.length === 0) {
+    throw new Error('Backup file is missing seat configuration.');
+  }
+
+  const clean = getCleanInitialData();
+  const restoredState: AppState = {
+    business: { ...clean.business, ...(candidate.business || {}) },
+    shifts: Array.isArray(candidate.shifts) && candidate.shifts.length > 0 ? candidate.shifts : clean.shifts,
+    plans: Array.isArray(candidate.plans) && candidate.plans.length > 0 ? candidate.plans : clean.plans,
+    seats: candidate.seats,
+    students: Array.isArray(candidate.students) ? candidate.students : [],
+    memberships: Array.isArray(candidate.memberships) ? candidate.memberships : [],
+    payments: Array.isArray(candidate.payments) ? candidate.payments : [],
+    expenses: Array.isArray(candidate.expenses) ? candidate.expenses : [],
+  };
+
+  cachedState = restoredState;
+  saveAppState(restoredState);
+  return restoredState;
+}
+
 // Emergency window recovery utility
 if (typeof window !== 'undefined') {
   (window as unknown as { __resetStudySpaceData?: () => void }).__resetStudySpaceData = () => {

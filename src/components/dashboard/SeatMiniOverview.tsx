@@ -52,8 +52,8 @@ export const SeatMiniOverview: React.FC<SeatMiniOverviewProps> = ({
       {/* Distribution Numbers & Legend */}
       <div className="grid grid-cols-3 gap-3 py-2 border-y border-slate-100 dark:border-slate-800">
         <div className="flex flex-col">
-          <div className="flex items-center gap-1.5 text-xs text-slate-600 dark:text-slate-300 font-medium">
-            <span className="w-2.5 h-2.5 rounded-full bg-blue-600"></span>
+          <div className="flex items-center gap-1.5 text-xs text-neutral-700 dark:text-neutral-300 font-medium">
+            <span className="w-2.5 h-2.5 rounded-full bg-neutral-900 dark:bg-white"></span>
             <span>Occupied</span>
           </div>
           <span className="text-lg font-bold text-slate-900 dark:text-white mt-0.5">

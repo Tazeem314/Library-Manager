@@ -1,6 +1,5 @@
 import React from 'react';
 import { LayoutDashboard, Armchair, Users, CreditCard, BarChart3, MoreHorizontal } from 'lucide-react';
-import { motion } from 'motion/react';
 import { TabType } from '../../types';
 
 interface BottomNavProps {
@@ -38,18 +37,18 @@ export const BottomNav: React.FC<BottomNavProps> = ({ activeTab, onTabChange }) 
               onClick={() => onTabChange(tab.id)}
               className={`flex flex-col items-center justify-center min-w-[44px] min-h-[44px] py-0.5 px-1 rounded-xl transition-all duration-75 touch-manipulation select-none active:scale-95 will-change-transform ${
                 isActive
-                  ? 'text-blue-700 dark:text-blue-400 font-bold'
-                  : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 font-medium'
+                  ? 'text-neutral-900 dark:text-white font-bold'
+                  : 'text-neutral-400 dark:text-neutral-500 hover:text-neutral-900 dark:hover:text-neutral-300 font-medium'
               }`}
             >
               <div
                 className={`relative flex items-center justify-center w-7 h-7 rounded-lg transition-transform ${
-                  isActive ? 'bg-blue-50 dark:bg-blue-950/60 scale-105' : ''
+                  isActive ? 'bg-neutral-100 dark:bg-neutral-800 scale-105 shadow-2xs' : ''
                 }`}
               >
-                <Icon className={`w-4 h-4 ${isActive ? 'text-blue-700 dark:text-blue-400 stroke-[2.2]' : 'stroke-[1.8]'}`} />
+                <Icon className={`w-4 h-4 ${isActive ? 'text-neutral-900 dark:text-white stroke-[2.4]' : 'stroke-[1.7]'}`} />
               </div>
-              <span className={`text-[10px] leading-none mt-1 tracking-tight truncate max-w-[52px] ${isActive ? 'font-bold text-blue-700 dark:text-blue-400' : ''}`}>
+              <span className={`text-[10px] leading-none mt-1 tracking-tight truncate max-w-[52px] ${isActive ? 'font-bold text-neutral-900 dark:text-white' : ''}`}>
                 {tab.label}
               </span>
             </button>

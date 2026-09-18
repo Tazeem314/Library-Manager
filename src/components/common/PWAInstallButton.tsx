@@ -42,33 +42,32 @@ export const PWAInstallButton: React.FC<PWAInstallButtonProps> = ({ variant = 'h
   return (
     <>
       {variant === 'header' && (
-        <motion.button
+        <button
+          type="button"
           id="pwa-install-header-btn"
           onClick={handleInstallClick}
-          whileHover={{ scale: 1.02 }}
-          whileTap={{ scale: 0.94 }}
-          className="w-8 h-8 sm:w-auto sm:px-2.5 sm:py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-semibold text-xs shadow-xs transition-colors flex items-center justify-center gap-1.5 shrink-0"
+          className="w-8 h-8 sm:w-auto sm:px-2.5 sm:py-1.5 rounded-lg bg-black hover:bg-neutral-800 dark:bg-white dark:hover:bg-neutral-200 dark:text-black active:scale-95 text-white font-semibold text-xs shadow-2xs transition-all flex items-center justify-center gap-1.5 shrink-0"
           title="Download StudySpace App to your phone or desktop"
           aria-label="Install App"
         >
           <Download className="w-3.5 h-3.5" />
           <span className="hidden sm:inline">Install App</span>
-        </motion.button>
+        </button>
       )}
 
       {variant === 'sidebar' && (
-        <motion.button
+        <button
+          type="button"
           id="pwa-install-sidebar-btn"
           onClick={handleInstallClick}
-          whileTap={{ scale: 0.98 }}
-          className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-semibold bg-blue-600/20 hover:bg-blue-600/30 text-blue-300 border border-blue-500/30 transition-colors"
+          className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-semibold bg-blue-600/20 hover:bg-blue-600/30 active:scale-[0.98] text-blue-300 border border-blue-500/30 transition-all"
         >
           <Download className="w-4 h-4 text-blue-400 shrink-0" />
           <div className="text-left leading-tight truncate">
             <div>Install Mobile App</div>
             <div className="text-[10px] text-blue-400/80 font-normal">Add to home screen</div>
           </div>
-        </motion.button>
+        </button>
       )}
 
       {variant === 'settings' && (

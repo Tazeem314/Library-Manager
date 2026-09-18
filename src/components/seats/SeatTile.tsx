@@ -52,8 +52,8 @@ const SeatTileComponent: React.FC<SeatTileProps> = ({
         </span>
 
         {isOccupied && (
-          <span className="flex items-center gap-1 text-[10px] font-medium text-slate-600 dark:text-slate-300 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 px-1.5 py-0.5 rounded-sm">
-            <span className="w-1.5 h-1.5 rounded-full bg-blue-600"></span>
+          <span className="flex items-center gap-1 text-[10px] font-medium text-neutral-800 dark:text-neutral-200 bg-neutral-100 dark:bg-neutral-800 border border-neutral-300 dark:border-neutral-700 px-1.5 py-0.5 rounded-sm">
+            <span className="w-1.5 h-1.5 rounded-full bg-neutral-900 dark:bg-white"></span>
             <span className="hidden sm:inline">Occ</span>
           </span>
         )}

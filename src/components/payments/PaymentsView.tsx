@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
 import {
   Search,
   Plus,
@@ -174,7 +175,12 @@ export const PaymentsView: React.FC<PaymentsViewProps> = ({
   return (
     <div id="payments-view" className="space-y-4 pb-20 md:pb-8">
       {/* Top Summary Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+      <motion.div
+        initial={{ opacity: 0, y: 15 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3 }}
+        className="grid grid-cols-1 sm:grid-cols-3 gap-3"
+      >
         {/* Remaining Fee Due Card */}
         <button
           type="button"
@@ -232,7 +238,7 @@ export const PaymentsView: React.FC<PaymentsViewProps> = ({
           </div>
           <span className="text-[11px] text-slate-400 dark:text-slate-500 mt-1 block font-medium">Money received today</span>
         </div>
-      </div>
+      </motion.div>
 
       {/* Primary Section Switcher Tabs */}
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-white dark:bg-slate-900 p-2.5 rounded-xl border border-slate-200/90 dark:border-slate-800 shadow-2xs">
@@ -373,8 +379,13 @@ export const PaymentsView: React.FC<PaymentsViewProps> = ({
               onAction={allDueRecords.length === 0 ? undefined : () => setDuesSearch('')}
             />
           ) : (
-            <div className="space-y-3">
-              {filteredDueRecords.map((record) => {
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.3 }}
+              className="space-y-3"
+            >
+              {filteredDueRecords.map((record, index) => {
                 const { student, membership, seat, shift } = record;
                 const initials = student.fullName
                   .split(' ')
@@ -519,7 +530,7 @@ export const PaymentsView: React.FC<PaymentsViewProps> = ({
                   </div>
                 );
               })}
-            </div>
+            </motion.div>
           )}
         </div>
       )}
@@ -597,8 +608,13 @@ export const PaymentsView: React.FC<PaymentsViewProps> = ({
               }
             />
           ) : (
-            <div className="space-y-2.5">
-              {filteredPayments.map((payment) => {
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.3 }}
+              className="space-y-2.5"
+            >
+              {filteredPayments.map((payment, index) => {
                 const methodColors =
                   {
                     UPI: 'bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 border-purple-200/70 dark:border-purple-800/60',
@@ -655,7 +671,7 @@ export const PaymentsView: React.FC<PaymentsViewProps> = ({
                   </div>
                 );
               })}
-            </div>
+            </motion.div>
           )}
         </div>
       )}

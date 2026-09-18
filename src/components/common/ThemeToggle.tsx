@@ -1,6 +1,5 @@
 import React from 'react';
 import { Sun, Moon } from 'lucide-react';
-import { motion } from 'motion/react';
 import { useTheme } from '../../hooks/useTheme';
 
 interface ThemeToggleProps {
@@ -30,31 +29,31 @@ export const ThemeToggle: React.FC<ThemeToggleProps> = ({ variant = 'header', on
     return (
       <div
         id="settings-theme-switcher"
-        className="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-center justify-between transition-colors"
+        className="p-3.5 rounded-xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 flex items-center justify-between transition-colors"
       >
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-lg bg-blue-50 dark:bg-blue-950/50 text-blue-600 dark:text-blue-400 flex items-center justify-center font-bold">
+          <div className="w-8 h-8 rounded-lg bg-neutral-100 dark:bg-neutral-800 text-neutral-900 dark:text-white flex items-center justify-center font-bold">
             {isDark ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />}
           </div>
           <div>
-            <div className="text-sm font-semibold text-slate-900 dark:text-white">
+            <div className="text-sm font-semibold text-neutral-900 dark:text-white">
               Display Mode
             </div>
-            <div className="text-xs text-slate-500 dark:text-slate-400">
-              Current: <strong className="capitalize text-slate-800 dark:text-slate-200">{theme} Mode</strong>
+            <div className="text-xs text-neutral-500 dark:text-neutral-400">
+              Current: <strong className="capitalize text-neutral-800 dark:text-neutral-200">{theme} Mode</strong>
             </div>
           </div>
         </div>
 
         {/* Segmented control */}
-        <div className="flex items-center bg-slate-100 dark:bg-slate-800 p-1 rounded-lg border border-slate-200 dark:border-slate-700">
+        <div className="flex items-center bg-neutral-100 dark:bg-neutral-800 p-1 rounded-lg border border-neutral-200 dark:border-neutral-700">
           <button
             id="theme-select-light"
             onClick={() => handleSelect('light')}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-all ${
               !isDark
-                ? 'bg-white text-slate-900 shadow-xs'
-                : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                ? 'bg-white text-neutral-900 shadow-2xs'
+                : 'text-neutral-500 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white'
             }`}
           >
             <Sun className="w-3.5 h-3.5" />
@@ -65,8 +64,8 @@ export const ThemeToggle: React.FC<ThemeToggleProps> = ({ variant = 'header', on
             onClick={() => handleSelect('dark')}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-all ${
               isDark
-                ? 'bg-slate-900 dark:bg-slate-700 text-white shadow-xs'
-                : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                ? 'bg-neutral-900 dark:bg-neutral-700 text-white shadow-2xs'
+                : 'text-neutral-500 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white'
             }`}
           >
             <Moon className="w-3.5 h-3.5" />
@@ -79,51 +78,43 @@ export const ThemeToggle: React.FC<ThemeToggleProps> = ({ variant = 'header', on
 
   if (variant === 'sidebar') {
     return (
-      <motion.button
+      <button
+        type="button"
         id="sidebar-theme-toggle-btn"
         onClick={handleToggle}
-        whileTap={{ scale: 0.96 }}
-        className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-semibold text-slate-300 hover:text-white hover:bg-slate-800/80 transition-colors"
+        className="w-full flex items-center justify-between px-2.5 py-2 rounded-lg text-xs font-medium text-neutral-300 hover:text-white hover:bg-neutral-850 active:scale-[0.98] transition-all"
         title={isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
       >
-        <div className="flex items-center gap-3">
-          <div className="w-5 h-5 rounded-md bg-slate-800 flex items-center justify-center text-slate-300">
-            {isDark ? <Sun className="w-3.5 h-3.5 text-amber-400" /> : <Moon className="w-3.5 h-3.5 text-blue-400" />}
+        <div className="flex items-center gap-2.5">
+          <div className="w-4 h-4 flex items-center justify-center text-neutral-400">
+            {isDark ? <Sun className="w-3.5 h-3.5" /> : <Moon className="w-3.5 h-3.5" />}
           </div>
-          <span>{isDark ? 'Light Theme' : 'Dark Theme'}</span>
+          <span>{isDark ? 'Light Mode' : 'Dark Mode'}</span>
         </div>
-        <span className="text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded bg-slate-800 text-slate-400">
+        <span className="text-[10px] uppercase font-mono px-1.5 py-0.5 rounded bg-neutral-800 text-neutral-400 border border-neutral-700">
           {theme}
         </span>
-      </motion.button>
+      </button>
     );
   }
 
   // Header compact button
   return (
-    <motion.button
+    <button
+      type="button"
       id="header-theme-toggle-btn"
       onClick={handleToggle}
-      whileHover={{ scale: 1.05 }}
-      whileTap={{ scale: 0.92 }}
-      className="relative w-8 h-8 rounded-lg flex items-center justify-center border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 shadow-2xs transition-colors"
+      className="relative w-8 h-8 rounded-lg flex items-center justify-center border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 text-neutral-800 dark:text-neutral-200 hover:bg-neutral-50 dark:hover:bg-neutral-800 active:scale-95 shadow-2xs transition-all"
       aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
       title={isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
     >
-      <motion.div
-        key={theme}
-        initial={{ rotate: -40, opacity: 0, scale: 0.6 }}
-        animate={{ rotate: 0, opacity: 1, scale: 1 }}
-        exit={{ rotate: 40, opacity: 0, scale: 0.6 }}
-        transition={{ duration: 0.2 }}
-        className="flex items-center justify-center"
-      >
+      <span className="flex items-center justify-center transition-transform duration-200">
         {isDark ? (
-          <Sun className="w-4 h-4 text-amber-400 stroke-[2.2]" />
+          <Sun className="w-3.5 h-3.5 stroke-[2]" />
         ) : (
-          <Moon className="w-4 h-4 text-slate-700 stroke-[2]" />
+          <Moon className="w-3.5 h-3.5 stroke-[2]" />
         )}
-      </motion.div>
-    </motion.button>
+      </span>
+    </button>
   );
 };

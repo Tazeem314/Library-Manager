@@ -1,6 +1,5 @@
 import React from 'react';
 import { UserPlus, UserCheck, CreditCard } from 'lucide-react';
-import { motion } from 'motion/react';
 
 interface QuickActionsProps {
   onAddStudent: () => void;
@@ -19,38 +18,35 @@ export const QuickActions: React.FC<QuickActionsProps> = ({
         Quick Operations
       </div>
       <div className="grid grid-cols-3 gap-2.5 sm:gap-3">
-        <motion.button
+        <button
+          type="button"
           id="quick-action-add-student"
           onClick={onAddStudent}
-          whileHover={{ y: -1 }}
-          whileTap={{ scale: 0.98 }}
-          className="flex items-center justify-center gap-2 py-2.5 px-3 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-medium text-xs sm:text-sm shadow-xs transition-colors"
+          className="flex items-center justify-center gap-2 py-2.5 px-3 rounded-lg bg-black hover:bg-neutral-800 dark:bg-white dark:hover:bg-neutral-200 dark:text-black active:scale-[0.98] text-white font-semibold text-xs sm:text-sm shadow-2xs transition-all"
         >
           <UserPlus className="w-4 h-4 shrink-0" />
           <span className="truncate">Add Student</span>
-        </motion.button>
+        </button>
 
-        <motion.button
+        <button
+          type="button"
           id="quick-action-assign-seat"
           onClick={onAssignSeat}
-          whileHover={{ y: -1 }}
-          whileTap={{ scale: 0.98 }}
-          className="flex items-center justify-center gap-2 py-2.5 px-3 rounded-lg bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-800 dark:text-slate-100 border border-slate-200/90 dark:border-slate-800 font-medium text-xs sm:text-sm shadow-2xs transition-colors"
+          className="flex items-center justify-center gap-2 py-2.5 px-3 rounded-lg bg-white dark:bg-neutral-900 hover:bg-neutral-50 dark:hover:bg-neutral-800 active:scale-[0.98] text-neutral-800 dark:text-neutral-100 border border-neutral-200 dark:border-neutral-800 font-medium text-xs sm:text-sm shadow-2xs transition-all"
         >
-          <UserCheck className="w-4 h-4 text-slate-500 dark:text-slate-400 shrink-0" />
+          <UserCheck className="w-4 h-4 text-neutral-500 dark:text-neutral-400 shrink-0" />
           <span className="truncate">Assign Seat</span>
-        </motion.button>
+        </button>
 
-        <motion.button
+        <button
+          type="button"
           id="quick-action-record-payment"
           onClick={onRecordPayment}
-          whileHover={{ y: -1 }}
-          whileTap={{ scale: 0.98 }}
-          className="flex items-center justify-center gap-2 py-2.5 px-3 rounded-lg bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-800 dark:text-slate-100 border border-slate-200/90 dark:border-slate-800 font-medium text-xs sm:text-sm shadow-2xs transition-colors"
+          className="flex items-center justify-center gap-2 py-2.5 px-3 rounded-lg bg-white dark:bg-neutral-900 hover:bg-neutral-50 dark:hover:bg-neutral-800 active:scale-[0.98] text-neutral-800 dark:text-neutral-100 border border-neutral-200 dark:border-neutral-800 font-medium text-xs sm:text-sm shadow-2xs transition-all"
         >
-          <CreditCard className="w-4 h-4 text-slate-500 dark:text-slate-400 shrink-0" />
+          <CreditCard className="w-4 h-4 text-neutral-500 dark:text-neutral-400 shrink-0" />
           <span className="truncate">Record Fee</span>
-        </motion.button>
+        </button>
       </div>
     </div>
   );

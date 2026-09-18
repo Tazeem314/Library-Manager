@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { motion } from 'motion/react';
 import { Search, Filter, Armchair, CheckCircle2, UserCheck, ShieldOff } from 'lucide-react';
 import { AppState, Seat, Student, Shift, Membership } from '../../types';
 import { SeatTile } from './SeatTile';
@@ -219,8 +220,13 @@ export const SeatsView: React.FC<SeatsViewProps> = ({
           }}
         />
       ) : (
-        <div className="space-y-5">
-          {Object.keys(groupedSeats).sort().map((rowLetter) => (
+        <motion.div 
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.3 }}
+          className="space-y-5"
+        >
+          {Object.keys(groupedSeats).sort().map((rowLetter, index) => (
             <div
               key={rowLetter}
               id={`seat-row-${rowLetter}`}
@@ -268,7 +274,7 @@ export const SeatsView: React.FC<SeatsViewProps> = ({
               </div>
             </div>
           ))}
-        </div>
+        </motion.div>
       )}
 
       {/* Seat Detail Bottom Sheet */}

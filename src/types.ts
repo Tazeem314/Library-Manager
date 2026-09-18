@@ -8,6 +8,8 @@ export interface Business {
   ownerName: string;
   phone: string;
   email: string;
+  ownerEmail?: string; // Strict authorized single-owner admin email for login whitelist
+  requireAdminAuth?: boolean; // When true (default), forces login gate before revealing library dashboard
   address: string;
   city: string;
   totalSeats: number;

@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { motion } from 'motion/react';
 import { Search, UserPlus, Users, Armchair } from 'lucide-react';
 import { AppState, Student, Seat, Shift, Membership, Payment } from '../../types';
 import { StudentCard } from './StudentCard';
@@ -192,24 +193,30 @@ export const StudentsView: React.FC<StudentsViewProps> = ({
           onAction={students.length === 0 ? onOpenAddStudent : () => setSearchQuery('')}
         />
       ) : (
-        <div className="space-y-2.5">
-          {filteredStudents.map((student) => {
+        <motion.div 
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.3 }}
+          className="space-y-2.5"
+        >
+          {filteredStudents.map((student, index) => {
             const seat = student.seatId ? seatMap.get(student.seatId) : undefined;
             const shift = student.shiftId ? shiftMap.get(student.shiftId) : undefined;
             const membership = membershipMapByStudent.get(student.id);
 
             return (
-              <StudentCard
-                key={student.id}
-                student={student}
-                seat={seat}
-                shift={shift}
-                membership={membership}
-                onSelect={(s) => setSelectedStudent(s)}
-              />
+              <div key={student.id}>
+                <StudentCard
+                  student={student}
+                  seat={seat}
+                  shift={shift}
+                  membership={membership}
+                  onSelect={(s) => setSelectedStudent(s)}
+                />
+              </div>
             );
           })}
-        </div>
+        </motion.div>
       )}
 
       {/* Student Profile Bottom Sheet */}

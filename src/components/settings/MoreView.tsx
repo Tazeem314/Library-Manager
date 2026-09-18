@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   Layers,
   Clock,
@@ -10,6 +10,11 @@ import {
   CheckCircle2,
   BarChart3,
   ArrowRight,
+  Download,
+  Upload,
+  Database,
+  Sparkles,
+  Cloud,
 } from 'lucide-react';
 import { AppState, MoreSubView, Business, Shift, MembershipPlan, TabType } from '../../types';
 import { MembershipPlansView } from './MembershipPlansView';
@@ -18,7 +23,8 @@ import { BusinessProfileView } from './BusinessProfileView';
 import { ConfirmDialog } from '../common/ConfirmDialog';
 import { PWAInstallButton } from '../common/PWAInstallButton';
 import { ThemeToggle } from '../common/ThemeToggle';
-import { Sparkles } from 'lucide-react';
+import { exportAppStateToJson, validateAndRestoreState } from '../../services/storage';
+import { AuthUser } from '../../services/firebase';
 
 interface MoreViewProps {
   state: AppState;
@@ -34,7 +40,10 @@ interface MoreViewProps {
   onUpdateBusiness: (business: Business) => void;
   onResetCleanData: () => void;
   onLoadSampleData?: () => void;
+  onRestoreState?: (restoredState: AppState) => void;
   onReplaySplash?: () => void;
+  authUser?: AuthUser | null;
+  onOpenAuthModal?: () => void;
 }
 
 export const MoreView: React.FC<MoreViewProps> = ({
@@ -51,10 +60,15 @@ export const MoreView: React.FC<MoreViewProps> = ({
   onUpdateBusiness,
   onResetCleanData,
   onLoadSampleData,
+  onRestoreState,
   onReplaySplash,
+  authUser = null,
+  onOpenAuthModal,
 }) => {
   const [confirmResetClean, setConfirmResetClean] = useState(false);
   const [confirmLoadSample, setConfirmLoadSample] = useState(false);
+  const [backupNotice, setBackupNotice] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const menuItems = [
     {
@@ -183,34 +197,140 @@ export const MoreView: React.FC<MoreViewProps> = ({
           <PWAInstallButton variant="settings" />
         </div>
 
-        {/* Data Management & Reset Section */}
+        {/* Google Cloud Sync Card */}
+        <div className="p-4.5 rounded-2xl bg-linear-to-br from-blue-50/70 via-slate-50 to-emerald-50/40 dark:from-slate-900 dark:via-slate-900/90 dark:to-emerald-950/20 border border-blue-200/80 dark:border-slate-800 space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider">
+              <Cloud className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+              <span>Google Cloud Sync</span>
+            </div>
+            {authUser ? (
+              <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-100/70 dark:bg-emerald-950/60 px-2 py-0.5 rounded-full border border-emerald-300/60 dark:border-emerald-800/60">
+                <ShieldCheck className="w-3 h-3" />
+                <span>Connected ({authUser.email})</span>
+              </span>
+            ) : (
+              <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400">
+                Not Connected
+              </span>
+            )}
+          </div>
+
+          <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
+            {authUser
+              ? `Your library data is protected and automatically synced with your Google account (${authUser.email}). Sign in with Google on any phone or laptop to access this library.`
+              : 'Safely sync your library across multiple phones, laptops, and staff devices by signing in with your Google account.'}
+          </p>
+
+          <div className="pt-1">
+            <button
+              type="button"
+              onClick={onOpenAuthModal}
+              className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold shadow-xs transition-colors"
+            >
+              <Cloud className="w-3.5 h-3.5" />
+              <span>{authUser ? 'Manage Google Account Sync' : 'Sign in to Sync with Google'}</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Data Management & Backup Section */}
         <div className="p-4.5 rounded-2xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 space-y-3">
           <div className="flex items-center gap-2 text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
-            <ShieldCheck className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-            <span>Library Data Management</span>
+            <Database className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+            <span>Backup & Data Management</span>
           </div>
           <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
-            Manage your library records. Reset all data to start with a completely clean library (all seats available, 0 students, 0 dues, 0 expenses), or load sample demo data anytime.
+            Download an offline backup copy of all your students, seat allocations, fees, and expenses, or restore a previous backup file at any time.
           </p>
+
+          {backupNotice && (
+            <div className="p-2.5 rounded-xl bg-blue-50 dark:bg-blue-950/60 border border-blue-200 dark:border-blue-900/60 text-blue-800 dark:text-blue-200 text-xs flex items-center justify-between">
+              <span>{backupNotice}</span>
+              <button
+                type="button"
+                onClick={() => setBackupNotice(null)}
+                className="text-xs font-bold underline hover:opacity-80 ml-2"
+              >
+                Dismiss
+              </button>
+            </div>
+          )}
+
+          {/* Hidden File Input for Backup Upload */}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".json,application/json"
+            className="hidden"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (!file) return;
+              const reader = new FileReader();
+              reader.onload = (event) => {
+                try {
+                  const content = event.target?.result as string;
+                  const parsed = JSON.parse(content);
+                  const restored = validateAndRestoreState(parsed);
+                  if (onRestoreState) {
+                    onRestoreState(restored);
+                  }
+                  setBackupNotice(`Successfully restored ${restored.students.length} students and ${restored.seats.length} seats from backup.`);
+                } catch (err: unknown) {
+                  const msg = err instanceof Error ? err.message : 'Invalid backup file.';
+                  setBackupNotice(`Error restoring backup: ${msg}`);
+                }
+              };
+              reader.readAsText(file);
+              e.target.value = '';
+            }}
+          />
 
           <div className="flex flex-wrap items-center gap-2.5 pt-1">
             <button
+              id="export-backup-btn"
+              type="button"
+              onClick={() => {
+                try {
+                  exportAppStateToJson(state);
+                  setBackupNotice('Backup downloaded successfully to your device!');
+                } catch (err) {
+                  setBackupNotice('Failed to create backup download.');
+                }
+              }}
+              className="inline-flex items-center gap-2 px-3.5 py-2.5 rounded-xl bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-semibold transition-colors shadow-2xs"
+            >
+              <Download className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
+              <span>Download Backup (JSON)</span>
+            </button>
+
+            <button
+              id="import-backup-btn"
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              className="inline-flex items-center gap-2 px-3.5 py-2.5 rounded-xl bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-semibold transition-colors shadow-2xs"
+            >
+              <Upload className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+              <span>Restore from Backup</span>
+            </button>
+
+            <button
               id="reset-clean-data-btn"
               onClick={() => setConfirmResetClean(true)}
-              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/60 hover:bg-rose-100 dark:hover:bg-rose-900/60 text-rose-700 dark:text-rose-300 text-xs font-bold transition-colors shadow-2xs"
+              className="inline-flex items-center gap-2 px-3.5 py-2.5 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/60 hover:bg-rose-100 dark:hover:bg-rose-900/60 text-rose-700 dark:text-rose-300 text-xs font-bold transition-colors shadow-2xs"
             >
               <RotateCcw className="w-3.5 h-3.5 text-rose-600 dark:text-rose-400" />
-              <span>Reset All Data (Start From Scratch)</span>
+              <span>Reset (Clean Slate)</span>
             </button>
 
             {onLoadSampleData && (
               <button
                 id="load-sample-demo-btn"
                 onClick={() => setConfirmLoadSample(true)}
-                className="inline-flex items-center gap-2 px-3.5 py-2.5 rounded-xl bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-semibold transition-colors shadow-2xs"
+                className="inline-flex items-center gap-2 px-3.5 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 text-xs font-medium transition-colors shadow-2xs"
               >
-                <RotateCcw className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400" />
-                <span>Load Demo Data</span>
+                <RotateCcw className="w-3.5 h-3.5 text-slate-400" />
+                <span>Demo Data</span>
               </button>
             )}
           </div>

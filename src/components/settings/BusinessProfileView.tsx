@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Building2, User, Phone, Mail, MapPin, CheckCircle2 } from 'lucide-react';
+import { Building2, User, Phone, Mail, MapPin, CheckCircle2, ShieldCheck, Lock } from 'lucide-react';
 import { Business } from '../../types';
 
 interface BusinessProfileViewProps {
@@ -11,7 +11,11 @@ export const BusinessProfileView: React.FC<BusinessProfileViewProps> = ({
   business,
   onUpdateBusiness,
 }) => {
-  const [formData, setFormData] = useState<Business>({ ...business });
+  const [formData, setFormData] = useState<Business>({
+    ...business,
+    ownerEmail: business.ownerEmail || business.email || 'tazeemsiddiqui0786@gmail.com',
+    requireAdminAuth: business.requireAdminAuth !== false,
+  });
   const [saved, setSaved] = useState(false);
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -25,23 +29,57 @@ export const BusinessProfileView: React.FC<BusinessProfileViewProps> = ({
     <div id="business-profile-view" className="space-y-4">
       <div>
         <h3 className="text-base font-bold text-slate-900 dark:text-white tracking-tight">
-          Library Details
+          Library Details & Admin Access Security
         </h3>
         <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-          Your study hall name, address, and owner contact details
+          Study hall information, contact details, and single-owner login email authorization
         </p>
       </div>
 
       <form
         onSubmit={handleSubmit}
-        className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-4 max-w-2xl"
+        className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-5 max-w-2xl"
       >
         {saved && (
           <div className="p-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300 text-xs font-semibold flex items-center gap-2">
             <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
-            <span>Library details saved successfully!</span>
+            <span>Library details and owner access rules saved successfully!</span>
           </div>
         )}
+
+        {/* Owner Security Restriction Box */}
+        <div className="p-4 rounded-2xl bg-neutral-100/90 dark:bg-neutral-850/80 border border-neutral-200 dark:border-neutral-700 space-y-3">
+          <div className="flex items-center gap-2">
+            <ShieldCheck className="w-5 h-5 text-neutral-900 dark:text-white shrink-0" />
+            <span className="text-xs font-bold text-neutral-900 dark:text-white uppercase tracking-wider">
+              Single-Owner Login Protection
+            </span>
+          </div>
+          <p className="text-xs text-neutral-600 dark:text-neutral-300 leading-relaxed">
+            Only the registered owner Gmail below can unlock and manage this library dashboard. Any other Gmail account will be rejected automatically.
+          </p>
+
+          <div>
+            <label className="block text-xs font-bold text-neutral-700 dark:text-neutral-300 uppercase tracking-wider mb-1.5">
+              Authorized Owner Gmail <span className="text-rose-500">*</span>
+            </label>
+            <div className="relative">
+              <Lock className="w-4 h-4 text-neutral-400 absolute left-3 top-1/2 -translate-y-1/2" />
+              <input
+                id="biz-owner-email-whitelist-input"
+                type="email"
+                required
+                value={formData.ownerEmail || ''}
+                onChange={(e) => setFormData({ ...formData, ownerEmail: e.target.value })}
+                placeholder="e.g. yourname@gmail.com"
+                className="w-full pl-9 pr-3 py-2 text-sm bg-white dark:bg-slate-800 border border-blue-200 dark:border-blue-700 rounded-xl focus:outline-hidden focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 text-slate-900 dark:text-white font-mono font-medium"
+              />
+            </div>
+            <span className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 block">
+              Only this email can access the dashboard. All other Gmails will be blocked.
+            </span>
+          </div>
+        </div>
 
         {/* Study Hall Name */}
         <div>

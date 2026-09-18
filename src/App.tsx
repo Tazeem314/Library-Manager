@@ -19,9 +19,11 @@ import { WhatsAppReminderModal } from './components/common/WhatsAppReminderModal
 import { OfflineIndicator } from './components/common/OfflineIndicator';
 import { SplashScreen } from './components/common/SplashScreen';
 import { ReminderContext, ReminderType } from './utils/whatsapp';
-import { AuthProvider, useAuth } from './context/AuthContext';
-import { LoginModal } from './components/auth/LoginModal';
 import { safeSessionStorage } from './utils/safeStorage';
+import { AuthSyncModal } from './components/common/AuthSyncModal';
+import { AdminAuthGate } from './components/auth/AdminAuthGate';
+import { AuthUser, subscribeToUserState, saveUserStateToFirestore, auth, logOutUser } from './services/firebase';
+import { onAuthStateChanged } from 'firebase/auth';
 
 function AppContent() {
   const [showSplash, setShowSplash] = useState(false);
@@ -34,7 +36,30 @@ function AppContent() {
   const [activeTab, setActiveTab] = useState<TabType>('dashboard');
   const [moreSubView, setMoreSubView] = useState<MoreSubView>('menu');
 
-  const { user, syncToCloud, loadFromCloud } = useAuth();
+  // Auth & Cloud Sync state
+  const [authUser, setAuthUser] = useState<AuthUser | null>(null);
+  const [authChecked, setAuthChecked] = useState(false);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [isCloudSyncing, setIsCloudSyncing] = useState(false);
+
+  // Authorized Owner Email Whitelist check
+  const configuredOwnerEmail = (state.business?.ownerEmail || state.business?.email || 'tazeemsiddiqui0786@gmail.com').trim().toLowerCase();
+  const currentLoggedInEmail = (authUser?.email || '').trim().toLowerCase();
+  const isOwnerAuthorized = authUser ? currentLoggedInEmail === configuredOwnerEmail : false;
+  const isUnauthorizedUser = authUser && !isOwnerAuthorized ? authUser : null;
+
+  // Listen to Auth State
+  useEffect(() => {
+    if (!auth) {
+      setAuthChecked(true);
+      return;
+    }
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      setAuthUser(user);
+      setAuthChecked(true);
+    });
+    return () => unsubscribe();
+  }, []);
 
   // Toasts
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
@@ -51,53 +76,53 @@ function AppContent() {
     setToasts((prev) => prev.filter((t) => t.id !== id));
   }, []);
 
-  // Guard against overwriting remote data before initial cloud load completes
-  const cloudSyncReadyRef = useRef<string | null>(null);
-
-  // Initial cloud state load on user login
-  useEffect(() => {
-    if (!user) {
-      cloudSyncReadyRef.current = null;
-      return;
-    }
-    let isSubscribed = true;
-
-    (async () => {
-      try {
-        const cloudState = await loadFromCloud();
-        if (!isSubscribed) return;
-
-        if (cloudState && Array.isArray(cloudState.students) && cloudState.students.length > 0) {
-          setState(cloudState);
-          saveAppState(cloudState);
-          addToast(`Loaded ${cloudState.students.length} students from Cloud Firestore (${user.email})`, 'success');
-        } else {
-          // If user has no existing records in cloud, backup current local state
-          await syncToCloud(state);
-          addToast(`Study hall workspace synced with ${user.email}`, 'success');
-        }
-        cloudSyncReadyRef.current = user.uid;
-      } catch (err) {
-        console.warn('Initial cloud sync notice:', err);
-        cloudSyncReadyRef.current = user.uid;
-      }
-    })();
-
-    return () => {
-      isSubscribed = false;
-    };
-  }, [user]);
-
-  // Save to localStorage and Cloud Firestore with debounce
+  // Save to localStorage with debounce
   useEffect(() => {
     const timer = setTimeout(() => {
       saveAppState(state);
-      if (user && cloudSyncReadyRef.current === user.uid) {
-        syncToCloud(state);
-      }
     }, 400);
     return () => clearTimeout(timer);
-  }, [state, user, syncToCloud]);
+  }, [state]);
+
+  // Background Auto-Sync to Cloud Vault whenever data changes
+  const isInitialSyncMount = useRef(true);
+  useEffect(() => {
+    if (isInitialSyncMount.current) {
+      isInitialSyncMount.current = false;
+      return;
+    }
+    if (!authUser) return;
+
+    const timer = setTimeout(async () => {
+      try {
+        setIsCloudSyncing(true);
+        await saveUserStateToFirestore(authUser.uid, state);
+      } catch (err) {
+        console.warn('Background auto-sync to cloud failed:', err);
+      } finally {
+        setIsCloudSyncing(false);
+      }
+    }, 1200);
+
+    return () => clearTimeout(timer);
+  }, [state, authUser]);
+
+  // Real-time synchronization listener across devices
+  useEffect(() => {
+    if (!authUser) return;
+
+    const unsubscribe = subscribeToUserState(
+      authUser.uid,
+      (remoteState) => {
+        setState(remoteState);
+      },
+      (err) => {
+        console.warn('Realtime sync subscriber error:', err);
+      }
+    );
+
+    return () => unsubscribe();
+  }, [authUser?.uid]);
 
   // Modals state
   const [isAddStudentOpen, setIsAddStudentOpen] = useState(false);
@@ -540,8 +565,39 @@ function AppContent() {
     addToast('Sample demo data loaded for testing.', 'info');
   };
 
+  // If Auth check is loading initially, show a smooth minimal loader
+  if (!authChecked) {
+    return (
+      <div className="min-h-screen bg-black text-white flex items-center justify-center p-6 select-none">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-5 h-5 border-[1.5px] border-neutral-800 border-t-white rounded-full animate-spin" />
+          <span className="text-[11px] font-normal tracking-wider text-neutral-400">StudySpace</span>
+        </div>
+      </div>
+    );
+  }
+
+  // Single-Owner Login Gate: If unauthenticated or unauthorized Gmail, show Login Page
+  if (!authUser || !isOwnerAuthorized) {
+    return (
+      <AdminAuthGate
+        businessName={state.business?.name || 'Study Space'}
+        allowedEmail={state.business?.ownerEmail || state.business?.email || 'tazeemsiddiqui0786@gmail.com'}
+        onAuthenticated={(user) => {
+          setAuthUser(user);
+          addToast(`Welcome back, ${user.displayName || 'Owner'}!`, 'success');
+        }}
+        unauthorizedUser={isUnauthorizedUser}
+        onSignOut={async () => {
+          await logOutUser();
+          setAuthUser(null);
+        }}
+      />
+    );
+  }
+
   return (
-    <div id="studyspace-app" className="min-h-screen bg-slate-100/70 text-slate-800 flex">
+    <div id="studyspace-app" className="min-h-screen bg-[#fafafa] dark:bg-[#09090b] text-neutral-900 dark:text-neutral-100 flex">
       {/* Desktop Navigation Sidebar */}
       <Sidebar
         business={state.business}
@@ -557,22 +613,31 @@ function AppContent() {
           setActiveTab('more');
           setMoreSubView(sub);
         }}
+        authUser={authUser}
+        isSyncing={isCloudSyncing}
+        onOpenAuthModal={() => setIsAuthModalOpen(true)}
       />
 
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* Sticky Header */}
-        <Header business={state.business} onResetData={handleResetCleanData} />
+        <Header
+          business={state.business}
+          onResetData={handleResetCleanData}
+          authUser={authUser}
+          isSyncing={isCloudSyncing}
+          onOpenAuthModal={() => setIsAuthModalOpen(true)}
+        />
 
         {/* Dynamic Page Views */}
-        <main id="app-main-content" className="flex-1 p-4 sm:p-6 md:p-8 max-w-7xl w-full mx-auto">
-          <AnimatePresence initial={false}>
+        <main id="app-main-content" className="flex-1 p-4 sm:p-6 md:p-8 max-w-7xl w-full mx-auto relative overflow-x-hidden">
+          <AnimatePresence mode="wait">
             <motion.div
               key={activeTab}
-              initial={{ opacity: 0.85 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0.85 }}
-              transition={{ duration: 0.08, ease: 'easeOut' }}
+              initial={{ opacity: 0, y: 15, scale: 0.98 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -15, scale: 0.98 }}
+              transition={{ type: 'spring', damping: 25, stiffness: 350, duration: 0.2 }}
               className="transform-gpu"
             >
               {activeTab === 'dashboard' && (
@@ -596,6 +661,8 @@ function AppContent() {
                     setActiveTab('students');
                     window.scrollTo(0, 0);
                   }}
+                  authUser={authUser}
+                  onOpenAuthModal={() => setIsAuthModalOpen(true)}
                 />
               )}
 
@@ -660,7 +727,13 @@ function AppContent() {
                   onUpdateBusiness={handleUpdateBusiness}
                   onResetCleanData={handleResetCleanData}
                   onLoadSampleData={handleLoadSampleData}
+                  onRestoreState={(restored) => {
+                    setState(restored);
+                    addToast(`Restored ${restored.students.length} students from backup file`, 'success');
+                  }}
                   onReplaySplash={() => setShowSplash(true)}
+                  authUser={authUser}
+                  onOpenAuthModal={() => setIsAuthModalOpen(true)}
                 />
               )}
             </motion.div>
@@ -719,8 +792,16 @@ function AppContent() {
         onSuccessToast={(msg) => addToast(msg, 'success')}
       />
 
-      {/* Gmail / Google Authentication Modal */}
-      <LoginModal />
+      {/* Auth & Cloud Sync Modal */}
+      <AuthSyncModal
+        isOpen={isAuthModalOpen}
+        onClose={() => setIsAuthModalOpen(false)}
+        currentState={state}
+        authUser={authUser}
+        onSignIn={(user) => setAuthUser(user)}
+        onSignOut={() => setAuthUser(null)}
+        onToast={(msg, type) => addToast(msg, type)}
+      />
 
       {/* Offline Connectivity Indicator */}
       <OfflineIndicator />
@@ -732,9 +813,5 @@ function AppContent() {
 }
 
 export default function App() {
-  return (
-    <AuthProvider>
-      <AppContent />
-    </AuthProvider>
-  );
+  return <AppContent />;
 }

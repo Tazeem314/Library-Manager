@@ -403,6 +403,8 @@ export function getCleanInitialData() {
     ownerName: 'Library Owner',
     phone: '+91 98000 00000',
     email: 'contact@studylibrary.com',
+    ownerEmail: 'tazeemsiddiqui0786@gmail.com',
+    requireAdminAuth: true,
     address: 'Near Coaching Circle, Main Road',
     city: 'City, State',
     totalSeats: 100,
