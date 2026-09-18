@@ -13,6 +13,8 @@ interface StudentsViewProps {
   onAssignSeat: (student: Student) => void;
   onRecordPayment: (student: Student, membership?: Membership) => void;
   onOpenWhatsAppReminder?: (ctx: ReminderContext, initialType?: ReminderType) => void;
+  onUpdateStudent?: (student: Student) => void;
+  onDeleteStudent?: (studentId: string) => void;
 }
 
 export const StudentsView: React.FC<StudentsViewProps> = ({
@@ -21,6 +23,8 @@ export const StudentsView: React.FC<StudentsViewProps> = ({
   onAssignSeat,
   onRecordPayment,
   onOpenWhatsAppReminder,
+  onUpdateStudent,
+  onDeleteStudent,
 }) => {
   const { students, seats, shifts, memberships, payments } = state;
 
@@ -238,6 +242,8 @@ export const StudentsView: React.FC<StudentsViewProps> = ({
             onRecordPayment(stu, mem);
           }}
           onOpenWhatsAppReminder={onOpenWhatsAppReminder}
+          onUpdateStudent={onUpdateStudent}
+          onDeleteStudent={onDeleteStudent}
           business={state.business}
         />
       )}

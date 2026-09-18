@@ -389,6 +389,68 @@ function AppContent() {
     });
   };
 
+  // Update Student Info
+  const handleUpdateStudent = (updatedStudent: Student) => {
+    setState((prevState) => {
+      const updatedStudents = prevState.students.map((s) =>
+        s.id === updatedStudent.id ? updatedStudent : s
+      );
+
+      // Also update studentName in payments if changed
+      const updatedPayments = prevState.payments.map((p) =>
+        p.studentId === updatedStudent.id
+          ? { ...p, studentName: updatedStudent.fullName }
+          : p
+      );
+
+      addToast(`Student details for "${updatedStudent.fullName}" updated!`);
+
+      return {
+        ...prevState,
+        students: updatedStudents,
+        payments: updatedPayments,
+      };
+    });
+  };
+
+  // Delete Student Record
+  const handleDeleteStudent = (studentId: string) => {
+    setState((prevState) => {
+      const studentToDelete = prevState.students.find((s) => s.id === studentId);
+      const studentName = studentToDelete?.fullName || 'Student';
+
+      // Free any seat occupied by this student
+      const updatedSeats = prevState.seats.map((seat) => {
+        if (seat.currentStudentId === studentId) {
+          return {
+            ...seat,
+            status: 'available' as const,
+            currentStudentId: undefined,
+            currentMembershipId: undefined,
+            currentShiftId: undefined,
+          };
+        }
+        return seat;
+      });
+
+      // Remove or expire memberships
+      const updatedMemberships = prevState.memberships.filter(
+        (m) => m.studentId !== studentId
+      );
+
+      const updatedStudents = prevState.students.filter((s) => s.id !== studentId);
+
+      addToast(`Student "${studentName}" and assigned seat record removed.`);
+
+      return {
+        ...prevState,
+        seats: updatedSeats,
+        students: updatedStudents,
+        memberships: updatedMemberships,
+      };
+    });
+  };
+
   // Save Recorded Payment
   const handleSavePayment = (data: {
     studentId: string;
@@ -684,6 +746,8 @@ function AppContent() {
                   onAssignSeat={handleAssignSeatForStudent}
                   onRecordPayment={handleRecordPaymentForStudent}
                   onOpenWhatsAppReminder={handleOpenWhatsAppReminder}
+                  onUpdateStudent={handleUpdateStudent}
+                  onDeleteStudent={handleDeleteStudent}
                 />
               )}
 

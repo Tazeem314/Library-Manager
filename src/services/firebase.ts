@@ -9,6 +9,7 @@ import {
   Auth,
 } from 'firebase/auth';
 import {
+  initializeFirestore,
   getFirestore,
   doc,
   getDoc,
@@ -101,11 +102,21 @@ try {
   app = getApps().length > 0 ? getApp() : initializeApp(activeConfig);
   auth = getAuth(app);
   googleProvider = new GoogleAuthProvider();
-  db =
-    activeConfig.firestoreDatabaseId &&
-    activeConfig.firestoreDatabaseId !== '(default)'
-      ? getFirestore(app, activeConfig.firestoreDatabaseId)
-      : getFirestore(app);
+  
+  const customDbId = activeConfig.firestoreDatabaseId && activeConfig.firestoreDatabaseId !== '(default)' 
+    ? activeConfig.firestoreDatabaseId 
+    : undefined;
+
+  try {
+    if (customDbId) {
+      db = initializeFirestore(app, { ignoreUndefinedProperties: true }, customDbId);
+    } else {
+      db = initializeFirestore(app, { ignoreUndefinedProperties: true });
+    }
+  } catch (initErr) {
+    // If already initialized with defaults, fallback to getFirestore
+    db = customDbId ? getFirestore(app, customDbId) : getFirestore(app);
+  }
 } catch (e) {
   console.warn('Firebase initialization skipped or fell back to local offline mode:', e);
 }
@@ -180,7 +191,8 @@ export async function signInWithGoogle(): Promise<FirebaseUser> {
       throw new Error('Google Firebase project API key needs renewal. In the meantime, your study hall data is safely saved on this device, and you can download offline backups from Settings.');
     }
     if (err.code === 'auth/unauthorized-domain') {
-      throw new Error('This domain is awaiting Firebase OAuth authorization. Please open the app in a new tab to test.');
+      const currentHost = typeof window !== 'undefined' ? window.location.hostname : 'this domain';
+      throw new Error(`Domain "${currentHost}" is not authorized in your Firebase Project. Please add "${currentHost}" under Firebase Console -> Authentication -> Settings -> Authorized Domains.`);
     }
     throw new Error(err.message || 'Failed to sign in with Google. Please try again.');
   }
@@ -204,14 +216,22 @@ export async function saveUserStateToFirestore(
 ): Promise<void> {
   if (!userId || !db) return;
   const workspaceRef = doc(db, 'users', userId, 'workspace', 'data');
-  await setDoc(
-    workspaceRef,
-    {
-      ...state,
+  // Deep-sanitize payload to remove any undefined values before writing to Firestore
+  const sanitized = JSON.parse(
+    JSON.stringify({
+      business: state.business,
+      shifts: state.shifts || [],
+      plans: state.plans || [],
+      seats: state.seats || [],
+      students: state.students || [],
+      memberships: state.memberships || [],
+      payments: state.payments || [],
+      expenses: state.expenses || [],
       updatedAt: new Date().toISOString(),
-    },
-    { merge: true }
+    })
   );
+
+  await setDoc(workspaceRef, sanitized, { merge: true });
 }
 
 /**
