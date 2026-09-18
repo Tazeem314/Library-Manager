@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Cloud, AlertCircle, LogOut, CheckCircle2 } from 'lucide-react';
+import { X, Cloud, AlertTriangle, LogOut, CheckCircle2, ShieldCheck } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { AppState } from '../../types';
 import { 
@@ -7,6 +7,7 @@ import {
   logOutUser, 
   AuthUser 
 } from '../../services/firebase';
+import { PRIMARY_ADMIN_EMAIL, isAuthorizedAdmin, getAccessDeniedMessage } from '../../services/authGuard';
 
 interface AuthSyncModalProps {
   isOpen: boolean;
@@ -30,20 +31,21 @@ export const AuthSyncModal: React.FC<AuthSyncModalProps> = ({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
+  const targetAdmin = (currentState.business?.ownerEmail || currentState.business?.email || PRIMARY_ADMIN_EMAIL).trim().toLowerCase();
+
   const handleSignIn = async () => {
     setError('');
     setLoading(true);
     try {
-      const user = await signInWithGoogle();
-      const configuredOwner = (currentState.business?.ownerEmail || currentState.business?.email || 'tazeemsiddiqui0786@gmail.com').trim().toLowerCase();
-      const userEmail = (user.email || '').trim().toLowerCase();
+      const user = await signInWithGoogle(targetAdmin);
 
-      if (configuredOwner && userEmail !== configuredOwner) {
-        throw new Error(`Access Denied: ${user.email} is not the authorized owner email for this library.`);
+      if (!isAuthorizedAdmin(user.email, targetAdmin)) {
+        await logOutUser();
+        throw new Error(getAccessDeniedMessage());
       }
 
       onSignIn(user);
-      onToast(`Signed in successfully as ${user.displayName || user.email}`, 'success');
+      onToast('Signed in successfully as Administrator', 'success');
       onClose();
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Failed to sign in with Google';
@@ -109,8 +111,8 @@ export const AuthSyncModal: React.FC<AuthSyncModalProps> = ({
 
             <div className="p-4 sm:p-5 overflow-y-auto">
               {error && (
-                <div className="mb-4 p-3 bg-neutral-100 dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100 border border-neutral-300 dark:border-neutral-700 rounded-xl text-xs flex items-start gap-2 font-medium">
-                  <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                <div className="mb-4 p-3.5 bg-rose-50 dark:bg-rose-950/40 text-rose-800 dark:text-rose-200 border border-rose-200 dark:border-rose-800/60 rounded-xl text-xs flex items-start gap-2.5 font-medium leading-relaxed">
+                  <AlertTriangle className="w-4 h-4 text-rose-500 shrink-0 mt-0.5" />
                   <span>{error}</span>
                 </div>
               )}
@@ -127,10 +129,10 @@ export const AuthSyncModal: React.FC<AuthSyncModalProps> = ({
                     )}
                     <div className="min-w-0">
                       <div className="font-bold text-sm text-neutral-900 dark:text-white truncate">
-                        {authUser.displayName || 'Connected Account'}
+                        {authUser.displayName || 'Authorized Administrator'}
                       </div>
                       <div className="text-xs text-neutral-500 dark:text-neutral-400 truncate">
-                        {authUser.email}
+                        Admin Session Connected
                       </div>
                     </div>
                   </div>

@@ -19,6 +19,7 @@ import {
 } from 'firebase/firestore';
 import firebaseConfig from '../../firebase-applet-config.json';
 import { AppState } from '../types';
+import { isAuthorizedAdmin, getAccessDeniedMessage } from './authGuard';
 
 export interface FirebaseConfigParams {
   apiKey: string;
@@ -131,8 +132,9 @@ export interface AuthState {
 
 /**
  * Sign in with Google popup (Gmail account)
+ * Validates against the authorized administrator email whitelist
  */
-export async function signInWithGoogle(): Promise<FirebaseUser> {
+export async function signInWithGoogle(customAllowedEmail?: string): Promise<FirebaseUser> {
   if (!auth || !googleProvider) {
     throw new Error('Firebase Authentication is currently offline. Please check your network or open in a new tab.');
   }
@@ -141,7 +143,19 @@ export async function signInWithGoogle(): Promise<FirebaseUser> {
     const result = await signInWithPopup(auth, googleProvider);
     const user = result.user;
 
-    // Safely record/update user profile in Firestore
+    // Strict Admin Authorization Check
+    const isAuthorized = isAuthorizedAdmin(user.email, customAllowedEmail);
+    if (!isAuthorized) {
+      // Immediately sign out from Firebase session to prevent unauthorized access and state locking
+      try {
+        await signOut(auth);
+      } catch (signOutErr) {
+        console.warn('Silent sign-out cleanup error:', signOutErr);
+      }
+      throw new Error(getAccessDeniedMessage());
+    }
+
+    // Safely record/update authorized admin user profile in Firestore
     if (db) {
       try {
         const userRef = doc(db, 'users', user.uid);
@@ -152,6 +166,7 @@ export async function signInWithGoogle(): Promise<FirebaseUser> {
             email: user.email || '',
             displayName: user.displayName || '',
             photoURL: user.photoURL || '',
+            role: 'admin',
             lastLoginAt: new Date().toISOString(),
           },
           { merge: true }
@@ -169,6 +184,11 @@ export async function signInWithGoogle(): Promise<FirebaseUser> {
       isInIframe = typeof window !== 'undefined' && window.self !== window.top;
     } catch {
       isInIframe = true;
+    }
+
+    // If it is already an Access Denied error, re-throw as is
+    if (err.message && err.message.includes('Access Denied')) {
+      throw new Error(err.message);
     }
 
     if (err.code === 'auth/popup-closed-by-user') {

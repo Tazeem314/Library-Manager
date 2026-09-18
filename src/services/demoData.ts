@@ -1,4 +1,5 @@
 import { Business, Shift, MembershipPlan, Seat, Student, Membership, Payment, Expense } from '../types';
+import { PRIMARY_ADMIN_EMAIL } from './authGuard';
 
 export function getInitialDemoData() {
   const business: Business = {
@@ -403,7 +404,7 @@ export function getCleanInitialData() {
     ownerName: 'Library Owner',
     phone: '+91 98000 00000',
     email: 'contact@studylibrary.com',
-    ownerEmail: 'tazeemsiddiqui0786@gmail.com',
+    ownerEmail: PRIMARY_ADMIN_EMAIL,
     requireAdminAuth: true,
     address: 'Near Coaching Circle, Main Road',
     city: 'City, State',

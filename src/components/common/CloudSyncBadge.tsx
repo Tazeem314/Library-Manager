@@ -23,7 +23,7 @@ export const CloudSyncBadge: React.FC<CloudSyncBadgeProps> = ({
           id="header-cloud-sync-btn"
           onClick={onClick}
           className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-700/80 border border-neutral-200 dark:border-neutral-700 text-neutral-900 dark:text-neutral-100 text-xs font-semibold transition-colors shadow-2xs shrink-0"
-          title={`Synced to Google Account: ${authUser.email}`}
+          title="Synced to Admin Cloud Account"
         >
           {isSyncing ? (
             <RefreshCw className="w-3.5 h-3.5 text-neutral-500 dark:text-neutral-400 animate-spin" />
@@ -33,7 +33,7 @@ export const CloudSyncBadge: React.FC<CloudSyncBadgeProps> = ({
             </span>
           )}
           <span className="hidden sm:inline font-medium text-[11px]">
-            {authUser.displayName?.split(' ')[0] || 'Synced'}
+            Synced
           </span>
           <span className="sm:hidden font-medium text-[11px]">Synced</span>
         </button>
@@ -74,7 +74,7 @@ export const CloudSyncBadge: React.FC<CloudSyncBadgeProps> = ({
             )}
           </div>
           <div className="flex items-center justify-between text-[11px] text-neutral-400">
-            <span className="truncate">{authUser.email}</span>
+            <span className="truncate">Admin Account</span>
             <span className="text-[10px] text-neutral-300 group-hover:underline">Manage</span>
           </div>
         </div>
@@ -108,13 +108,10 @@ export const CloudSyncBadge: React.FC<CloudSyncBadgeProps> = ({
           </div>
           <div className="min-w-0">
             <div className="font-semibold text-neutral-900 dark:text-neutral-100 flex items-center gap-1.5 truncate">
-              <span>Backed up to Google:</span>
-              <span className="text-neutral-600 dark:text-neutral-400 text-[11px]">
-                {authUser.email}
-              </span>
+              <span>Backed up to Google Cloud</span>
             </div>
             <p className="text-[11px] text-neutral-500 dark:text-neutral-400 truncate">
-              Changes save automatically across your devices.
+              Changes save automatically across your authorized devices.
             </p>
           </div>
         </div>

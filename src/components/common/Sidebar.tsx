@@ -167,7 +167,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               {business.ownerName || 'Owner'}
             </div>
             <div className="text-[10px] text-neutral-400 truncate">
-              {business.email || 'Admin'}
+              Administrator
             </div>
           </div>
         </div>

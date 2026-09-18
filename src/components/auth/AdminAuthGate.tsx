@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Lock, AlertCircle, ArrowRight } from 'lucide-react';
+import { Lock, ShieldAlert, AlertTriangle, ArrowRight, ShieldCheck } from 'lucide-react';
 import { signInWithGoogle, AuthUser, logOutUser } from '../../services/firebase';
+import { PRIMARY_ADMIN_EMAIL } from '../../services/authGuard';
 
 interface AdminAuthGateProps {
   businessName: string;
@@ -13,7 +14,7 @@ interface AdminAuthGateProps {
 
 export const AdminAuthGate: React.FC<AdminAuthGateProps> = ({
   businessName,
-  allowedEmail,
+  allowedEmail = PRIMARY_ADMIN_EMAIL,
   onAuthenticated,
   unauthorizedUser,
   onSignOut,
@@ -21,24 +22,30 @@ export const AdminAuthGate: React.FC<AdminAuthGateProps> = ({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const targetAdminEmail = (allowedEmail || PRIMARY_ADMIN_EMAIL).trim().toLowerCase();
+
   const handleSignIn = async () => {
     setError(null);
     setLoading(true);
     try {
-      const user = await signInWithGoogle();
-      if (allowedEmail && allowedEmail.trim() !== '') {
-        const normalizedAllowed = allowedEmail.trim().toLowerCase();
-        const userEmail = (user.email || '').trim().toLowerCase();
-        if (userEmail !== normalizedAllowed) {
-          setError('Access restricted. Please sign in with the authorized owner account.');
-          setLoading(false);
-          return;
-        }
-      }
+      const user = await signInWithGoogle(targetAdminEmail);
       onAuthenticated(user);
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Sign in failed. Please try again.';
       setError(msg);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSwitchAccount = async () => {
+    setError(null);
+    setLoading(true);
+    try {
+      await logOutUser();
+      onSignOut();
+    } catch (err) {
+      console.warn('Sign out error:', err);
     } finally {
       setLoading(false);
     }
@@ -55,23 +62,27 @@ export const AdminAuthGate: React.FC<AdminAuthGateProps> = ({
         initial={{ opacity: 0, y: 14 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
-        className="w-full max-w-[380px] relative z-10"
+        className="w-full max-w-[420px] relative z-10"
       >
         {/* Minimal Brand & Header */}
-        <div className="text-center mb-8">
+        <div className="text-center mb-6">
           <motion.div
             initial={{ scale: 0.9, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             transition={{ delay: 0.1, duration: 0.3 }}
-            className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-neutral-900 border border-neutral-800 text-white mb-4 shadow-sm"
+            className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-neutral-900 border border-neutral-800 text-white mb-3.5 shadow-sm"
           >
-            <Lock className="w-5 h-5 text-neutral-300 stroke-[1.75]" />
+            {unauthorizedUser ? (
+              <ShieldAlert className="w-5 h-5 text-rose-400 stroke-[1.75]" />
+            ) : (
+              <Lock className="w-5 h-5 text-neutral-300 stroke-[1.75]" />
+            )}
           </motion.div>
           <h1 className="text-xl font-medium tracking-tight text-white">
             {businessName || 'Study Space'}
           </h1>
           <p className="text-xs text-neutral-400 mt-1 font-normal tracking-wide">
-            Sign in to continue to workspace
+            {unauthorizedUser ? 'Access Authorization Required' : 'Admin Security & Management Workspace'}
           </p>
         </div>
 
@@ -83,39 +94,64 @@ export const AdminAuthGate: React.FC<AdminAuthGateProps> = ({
           className="bg-neutral-900/90 backdrop-blur-md border border-neutral-800/80 rounded-2xl p-6 shadow-2xl space-y-5"
         >
           {unauthorizedUser ? (
+            /* Explicit Unauthorized Warning Screen (Zero Email Disclosure) */
             <div className="space-y-4">
-              <div className="p-3.5 rounded-xl bg-neutral-950 border border-neutral-800 text-neutral-300 text-xs space-y-2">
-                <div className="flex items-center gap-2 text-rose-400 font-medium">
-                  <AlertCircle className="w-4 h-4 shrink-0" />
-                  <span>Access restricted</span>
+              <div className="p-4 rounded-xl bg-rose-950/40 border border-rose-800/60 text-rose-200 text-xs space-y-2.5">
+                <div className="flex items-center gap-2 text-rose-400 font-semibold text-sm">
+                  <AlertTriangle className="w-4 h-4 shrink-0" />
+                  <span>Access Denied: Not Authorized</span>
                 </div>
-                <p className="text-neutral-400 leading-relaxed text-[11px]">
-                  This account does not have owner access permissions.
+                <p className="text-neutral-300 leading-relaxed text-[12px]">
+                  You are signed in with an account that is not authorized as an administrator.
+                </p>
+                <p className="text-neutral-400 leading-relaxed text-[12px]">
+                  You do not have permission to access the study hall management portal, student records, seat allocations, or financial data in this app.
                 </p>
               </div>
 
+              <div className="p-3 rounded-xl bg-neutral-950 border border-neutral-800/80 text-[11px] text-neutral-400 flex items-start gap-2.5">
+                <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+                <div>
+                  <div className="text-neutral-300 font-medium">Single-Owner Admin Protection</div>
+                  <div className="text-neutral-400 mt-0.5">Please sign in with the registered administrator account.</div>
+                </div>
+              </div>
+
               <motion.button
+                id="switch-admin-account-btn"
                 whileHover={{ scale: 1.01 }}
                 whileTap={{ scale: 0.98 }}
                 type="button"
-                onClick={onSignOut}
-                className="w-full py-3 px-4 bg-neutral-100 hover:bg-white text-neutral-950 text-xs font-semibold rounded-xl transition-all cursor-pointer shadow-sm flex items-center justify-center gap-2"
+                onClick={handleSwitchAccount}
+                disabled={loading}
+                className="w-full py-3 px-4 bg-white hover:bg-neutral-100 text-neutral-950 text-xs font-semibold rounded-xl transition-all cursor-pointer shadow-sm flex items-center justify-center gap-2 disabled:opacity-60"
               >
-                <span>Switch Account</span>
+                <span>Sign Out & Switch to Admin Account</span>
                 <ArrowRight className="w-3.5 h-3.5" />
               </motion.button>
             </div>
           ) : (
+            /* Admin Sign In Interface */
             <div className="space-y-4">
+              <div className="p-3.5 rounded-xl bg-neutral-950 border border-neutral-800/90 text-neutral-300 text-xs space-y-1.5">
+                <div className="flex items-center gap-2 text-neutral-200 font-medium">
+                  <ShieldCheck className="w-4 h-4 text-neutral-400 shrink-0" />
+                  <span>Admin Verification</span>
+                </div>
+                <p className="text-neutral-400 leading-relaxed text-[11px]">
+                  Only the registered study space administrator account has permission to access this management dashboard.
+                </p>
+              </div>
+
               <AnimatePresence>
                 {error && (
                   <motion.div
                     initial={{ opacity: 0, height: 0 }}
                     animate={{ opacity: 1, height: 'auto' }}
                     exit={{ opacity: 0, height: 0 }}
-                    className="p-3 rounded-xl bg-rose-950/40 border border-rose-800/50 text-rose-300 text-xs flex items-start gap-2 overflow-hidden"
+                    className="p-3.5 rounded-xl bg-rose-950/40 border border-rose-800/60 text-rose-200 text-xs flex items-start gap-2 overflow-hidden"
                   >
-                    <AlertCircle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
+                    <AlertTriangle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
                     <span className="leading-relaxed text-[11px]">{error}</span>
                   </motion.div>
                 )}
@@ -153,7 +189,7 @@ export const AdminAuthGate: React.FC<AdminAuthGateProps> = ({
                         d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
                       />
                     </svg>
-                    <span>Continue with Google</span>
+                    <span>Sign In with Admin Account</span>
                   </>
                 )}
               </motion.button>
@@ -162,9 +198,9 @@ export const AdminAuthGate: React.FC<AdminAuthGateProps> = ({
         </motion.div>
 
         {/* Minimal Footer Notice */}
-        <div className="text-center mt-6">
+        <div className="text-center mt-5">
           <p className="text-[11px] text-neutral-500 font-normal">
-            Private management workspace
+            Authorized Administrator Access Only
           </p>
         </div>
       </motion.div>

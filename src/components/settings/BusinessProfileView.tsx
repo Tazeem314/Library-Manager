@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Building2, User, Phone, Mail, MapPin, CheckCircle2, ShieldCheck, Lock } from 'lucide-react';
 import { Business } from '../../types';
+import { PRIMARY_ADMIN_EMAIL } from '../../services/authGuard';
 
 interface BusinessProfileViewProps {
   business: Business;
@@ -13,7 +14,7 @@ export const BusinessProfileView: React.FC<BusinessProfileViewProps> = ({
 }) => {
   const [formData, setFormData] = useState<Business>({
     ...business,
-    ownerEmail: business.ownerEmail || business.email || 'tazeemsiddiqui0786@gmail.com',
+    ownerEmail: business.ownerEmail || business.email || PRIMARY_ADMIN_EMAIL,
     requireAdminAuth: business.requireAdminAuth !== false,
   });
   const [saved, setSaved] = useState(false);
@@ -56,27 +57,23 @@ export const BusinessProfileView: React.FC<BusinessProfileViewProps> = ({
             </span>
           </div>
           <p className="text-xs text-neutral-600 dark:text-neutral-300 leading-relaxed">
-            Only the registered owner Gmail below can unlock and manage this library dashboard. Any other Gmail account will be rejected automatically.
+            Only the registered library administrator account can unlock and manage this dashboard. Any unauthorized account is automatically rejected by the security gate.
           </p>
 
-          <div>
-            <label className="block text-xs font-bold text-neutral-700 dark:text-neutral-300 uppercase tracking-wider mb-1.5">
-              Authorized Owner Gmail <span className="text-rose-500">*</span>
-            </label>
-            <div className="relative">
-              <Lock className="w-4 h-4 text-neutral-400 absolute left-3 top-1/2 -translate-y-1/2" />
-              <input
-                id="biz-owner-email-whitelist-input"
-                type="email"
-                required
-                value={formData.ownerEmail || ''}
-                onChange={(e) => setFormData({ ...formData, ownerEmail: e.target.value })}
-                placeholder="e.g. yourname@gmail.com"
-                className="w-full pl-9 pr-3 py-2 text-sm bg-white dark:bg-slate-800 border border-blue-200 dark:border-blue-700 rounded-xl focus:outline-hidden focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 text-slate-900 dark:text-white font-mono font-medium"
-              />
+          <div className="p-3 bg-white dark:bg-slate-900 rounded-xl border border-neutral-200 dark:border-neutral-800 flex items-center justify-between">
+            <div className="flex items-center gap-2.5">
+              <Lock className="w-4 h-4 text-emerald-500 shrink-0" />
+              <div>
+                <div className="text-xs font-semibold text-slate-900 dark:text-white">
+                  Admin Whitelist Security Status
+                </div>
+                <div className="text-[11px] text-slate-500 dark:text-slate-400">
+                  Protected & active (Configured in core security guard)
+                </div>
+              </div>
             </div>
-            <span className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 block">
-              Only this email can access the dashboard. All other Gmails will be blocked.
+            <span className="px-2.5 py-1 text-[11px] font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-100/80 dark:bg-emerald-950/80 rounded-full border border-emerald-300 dark:border-emerald-800">
+              Active & Protected
             </span>
           </div>
         </div>

@@ -24,6 +24,7 @@ import { AuthSyncModal } from './components/common/AuthSyncModal';
 import { AdminAuthGate } from './components/auth/AdminAuthGate';
 import { AuthUser, subscribeToUserState, saveUserStateToFirestore, auth, logOutUser } from './services/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
+import { PRIMARY_ADMIN_EMAIL, isAuthorizedAdmin } from './services/authGuard';
 
 function AppContent() {
   const [showSplash, setShowSplash] = useState(false);
@@ -42,23 +43,42 @@ function AppContent() {
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isCloudSyncing, setIsCloudSyncing] = useState(false);
 
-  // Authorized Owner Email Whitelist check
-  const configuredOwnerEmail = (state.business?.ownerEmail || state.business?.email || 'tazeemsiddiqui0786@gmail.com').trim().toLowerCase();
-  const currentLoggedInEmail = (authUser?.email || '').trim().toLowerCase();
-  const isOwnerAuthorized = authUser ? currentLoggedInEmail === configuredOwnerEmail : false;
+  // Authorized Admin Whitelist Check
+  const configuredOwnerEmail = (state.business?.ownerEmail || state.business?.email || PRIMARY_ADMIN_EMAIL).trim().toLowerCase();
+  const isOwnerAuthorized = Boolean(authUser && isAuthorizedAdmin(authUser.email, configuredOwnerEmail));
   const isUnauthorizedUser = authUser && !isOwnerAuthorized ? authUser : null;
 
-  // Listen to Auth State
+  // Listen to Auth State with safety fallback timer against loading loops
   useEffect(() => {
+    // Safety fallback: if auth takes more than 1200ms (e.g. iframe or offline), unblock loading UI
+    const safetyTimer = setTimeout(() => {
+      setAuthChecked(true);
+    }, 1200);
+
     if (!auth) {
       setAuthChecked(true);
+      clearTimeout(safetyTimer);
       return;
     }
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      setAuthUser(user);
-      setAuthChecked(true);
-    });
-    return () => unsubscribe();
+
+    const unsubscribe = onAuthStateChanged(
+      auth,
+      (user) => {
+        clearTimeout(safetyTimer);
+        setAuthUser(user);
+        setAuthChecked(true);
+      },
+      (err) => {
+        console.warn('Auth state change error:', err);
+        clearTimeout(safetyTimer);
+        setAuthChecked(true);
+      }
+    );
+
+    return () => {
+      clearTimeout(safetyTimer);
+      unsubscribe();
+    };
   }, []);
 
   // Toasts
@@ -76,22 +96,19 @@ function AppContent() {
     setToasts((prev) => prev.filter((t) => t.id !== id));
   }, []);
 
-  // Save to localStorage with debounce
+  // Immediate state persistence to LocalStorage
   useEffect(() => {
-    const timer = setTimeout(() => {
-      saveAppState(state);
-    }, 400);
-    return () => clearTimeout(timer);
+    saveAppState(state);
   }, [state]);
 
-  // Background Auto-Sync to Cloud Vault whenever data changes
+  // Background Auto-Sync to Cloud Vault whenever data changes (ONLY for authorized Admin)
   const isInitialSyncMount = useRef(true);
   useEffect(() => {
     if (isInitialSyncMount.current) {
       isInitialSyncMount.current = false;
       return;
     }
-    if (!authUser) return;
+    if (!authUser || !isOwnerAuthorized) return;
 
     const timer = setTimeout(async () => {
       try {
@@ -102,19 +119,21 @@ function AppContent() {
       } finally {
         setIsCloudSyncing(false);
       }
-    }, 1200);
+    }, 600);
 
     return () => clearTimeout(timer);
-  }, [state, authUser]);
+  }, [state, authUser, isOwnerAuthorized]);
 
-  // Real-time synchronization listener across devices
+  // Real-time synchronization listener across devices (ONLY for authorized Admin)
   useEffect(() => {
-    if (!authUser) return;
+    if (!authUser || !isOwnerAuthorized) return;
 
     const unsubscribe = subscribeToUserState(
       authUser.uid,
       (remoteState) => {
-        setState(remoteState);
+        if (remoteState && Array.isArray(remoteState.seats) && remoteState.seats.length > 0) {
+          setState(remoteState);
+        }
       },
       (err) => {
         console.warn('Realtime sync subscriber error:', err);
@@ -122,7 +141,7 @@ function AppContent() {
     );
 
     return () => unsubscribe();
-  }, [authUser?.uid]);
+  }, [authUser?.uid, isOwnerAuthorized]);
 
   // Modals state
   const [isAddStudentOpen, setIsAddStudentOpen] = useState(false);
@@ -222,11 +241,16 @@ function AppContent() {
         if (stu) {
           assignedStudentName = stu.fullName;
         }
-        newStudentsList = newStudentsList.map((s) =>
-          s.id === currentStudentId
-            ? { ...s, seatId: data.seatId, shiftId: data.shiftId, status: 'active' as const }
-            : s
-        );
+        newStudentsList = newStudentsList.map((s) => {
+          if (s.id === currentStudentId) {
+            return { ...s, seatId: data.seatId, shiftId: data.shiftId, status: 'active' as const };
+          }
+          // If another student previously had this seat assigned, clear their seat link
+          if (s.seatId === data.seatId && s.id !== currentStudentId) {
+            return { ...s, seatId: undefined, shiftId: undefined };
+          }
+          return s;
+        });
       }
 
       if (!currentStudentId) return prevState;
@@ -254,7 +278,7 @@ function AppContent() {
         createdAt: data.startDate,
       };
 
-      // Update seat
+      // Update seats: assign the target seat, and vacate any previous seat held by this student
       const updatedSeats = prevState.seats.map((seat) => {
         if (seat.id === data.seatId) {
           return {
@@ -263,6 +287,16 @@ function AppContent() {
             currentStudentId,
             currentMembershipId: memId,
             currentShiftId: data.shiftId,
+          };
+        }
+        // If this student was previously occupying another seat, free it
+        if (seat.currentStudentId === currentStudentId && seat.id !== data.seatId) {
+          return {
+            ...seat,
+            status: 'available' as const,
+            currentStudentId: undefined,
+            currentMembershipId: undefined,
+            currentShiftId: undefined,
           };
         }
         return seat;
@@ -290,13 +324,18 @@ function AppContent() {
       const seatName = assignedSeat ? assignedSeat.seatNumber : 'Seat';
       addToast(`Seat ${seatName} booked for ${assignedStudentName || 'Student'} successfully!`);
 
-      return {
+      const newState = {
         ...prevState,
         seats: updatedSeats,
         students: newStudentsList,
         memberships: [newMembership, ...prevState.memberships],
         payments: updatedPayments,
       };
+
+      // Synchronously write to local storage immediately
+      saveAppState(newState);
+
+      return newState;
     });
   };
 
@@ -644,10 +683,10 @@ function AppContent() {
     return (
       <AdminAuthGate
         businessName={state.business?.name || 'Study Space'}
-        allowedEmail={state.business?.ownerEmail || state.business?.email || 'tazeemsiddiqui0786@gmail.com'}
+        allowedEmail={state.business?.ownerEmail || PRIMARY_ADMIN_EMAIL}
         onAuthenticated={(user) => {
           setAuthUser(user);
-          addToast(`Welcome back, ${user.displayName || 'Owner'}!`, 'success');
+          addToast(`Welcome back, Admin ${user.displayName || ''}!`, 'success');
         }}
         unauthorizedUser={isUnauthorizedUser}
         onSignOut={async () => {

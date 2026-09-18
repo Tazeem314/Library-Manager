@@ -4,7 +4,6 @@ import { MapPin, Calendar } from 'lucide-react';
 import { Business } from '../../types';
 import { PWAInstallButton } from './PWAInstallButton';
 import { ThemeToggle } from './ThemeToggle';
-import { CloudSyncBadge } from './CloudSyncBadge';
 import { AuthUser } from '../../services/firebase';
 
 interface HeaderProps {
@@ -17,9 +16,6 @@ interface HeaderProps {
 
 export const Header: React.FC<HeaderProps> = ({
   business,
-  authUser = null,
-  isSyncing = false,
-  onOpenAuthModal,
 }) => {
   const today = new Date().toLocaleDateString('en-IN', {
     weekday: 'short',
@@ -37,17 +33,12 @@ export const Header: React.FC<HeaderProps> = ({
       className="bg-white/98 dark:bg-neutral-900/98 backdrop-blur-xs border-b border-neutral-200 dark:border-neutral-800 px-3.5 sm:px-8 py-2.5 sm:py-3.5 sticky top-0 z-30 transition-colors will-change-transform"
     >
       <div className="max-w-7xl mx-auto flex items-center justify-between gap-2 sm:gap-4">
-        {/* Left: Library Name, Location & Live Status */}
+        {/* Left: Library Name & Owner info */}
         <div className="flex-1 min-w-0 pr-1">
           <div className="flex items-center gap-1.5 sm:gap-2">
             <h1 className="text-base sm:text-lg font-bold text-neutral-900 dark:text-white tracking-tight truncate font-display">
               {business.name}
             </h1>
-            {/* Mobile Compact Live Indicator */}
-            <span className="inline-flex sm:hidden items-center gap-1 text-[10px] font-medium text-neutral-800 dark:text-neutral-200 bg-neutral-100 dark:bg-neutral-800 px-1.5 py-0.5 rounded border border-neutral-200 dark:border-neutral-700 shrink-0">
-              <span className="w-1.5 h-1.5 rounded-full bg-neutral-900 dark:bg-white"></span>
-              Open
-            </span>
             {business.city && (
               <span className="hidden sm:inline-flex items-center gap-1 text-[11px] font-medium text-neutral-500 dark:text-neutral-400 bg-neutral-100 dark:bg-neutral-800 px-2 py-0.5 rounded-md border border-neutral-200 dark:border-neutral-700 shrink-0">
                 <MapPin className="w-3 h-3 text-neutral-400" />
@@ -63,17 +54,8 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
         </div>
 
-        {/* Right: Cloud Sync, Theme Toggle, Install Button, Date & Operational Status */}
+        {/* Right: Theme Toggle, Install Button, Date */}
         <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
-          {onOpenAuthModal && (
-            <CloudSyncBadge
-              authUser={authUser}
-              isSyncing={isSyncing}
-              onClick={onOpenAuthModal}
-              variant="header"
-            />
-          )}
-
           <PWAInstallButton variant="header" />
 
           <ThemeToggle variant="header" />
@@ -81,11 +63,6 @@ export const Header: React.FC<HeaderProps> = ({
           <div className="hidden lg:flex items-center gap-1.5 text-xs text-neutral-600 dark:text-neutral-400 bg-neutral-100 dark:bg-neutral-800 px-3 py-1.5 rounded-lg border border-neutral-200 dark:border-neutral-700 font-medium">
             <Calendar className="w-3.5 h-3.5 text-neutral-400" />
             <span>{today}</span>
-          </div>
-
-          <div className="hidden sm:flex items-center gap-2 px-2.5 sm:px-3 py-1.5 rounded-lg bg-neutral-100 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 text-xs font-medium text-neutral-900 dark:text-neutral-100 shadow-2xs">
-            <span className="w-2 h-2 rounded-full bg-neutral-900 dark:bg-white"></span>
-            <span>Open</span>
           </div>
         </div>
       </div>

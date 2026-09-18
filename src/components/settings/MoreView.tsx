@@ -207,7 +207,7 @@ export const MoreView: React.FC<MoreViewProps> = ({
             {authUser ? (
               <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-100/70 dark:bg-emerald-950/60 px-2 py-0.5 rounded-full border border-emerald-300/60 dark:border-emerald-800/60">
                 <ShieldCheck className="w-3 h-3" />
-                <span>Connected ({authUser.email})</span>
+                <span>Cloud Backup Connected</span>
               </span>
             ) : (
               <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400">
@@ -218,8 +218,8 @@ export const MoreView: React.FC<MoreViewProps> = ({
 
           <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
             {authUser
-              ? `Your library data is protected and automatically synced with your Google account (${authUser.email}). Sign in with Google on any phone or laptop to access this library.`
-              : 'Safely sync your library across multiple phones, laptops, and staff devices by signing in with your Google account.'}
+              ? 'Your library data is protected and automatically synced with your authorized Google cloud account. Sign in on any authorized phone or laptop to access this library.'
+              : 'Safely sync your library across multiple devices by signing in with your authorized administrator Google account.'}
           </p>
 
           <div className="pt-1">
