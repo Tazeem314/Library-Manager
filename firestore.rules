@@ -1,21 +1,41 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // PIN-protected cloud vault for library sync across devices
+    // Default safety catch-all deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Connection test document for boot healthcheck
+    match /test/{docId} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+
+    // Authenticated admin user records and workspaces
+    match /users/{userId} {
+      allow read, write: if request.auth != null && (request.auth.uid == userId || request.auth.token.email == 'tazeemsiddiqui0786@gmail.com');
+      
+      match /{allSubcollections=**} {
+        allow read, write: if request.auth != null && (request.auth.uid == userId || request.auth.token.email == 'tazeemsiddiqui0786@gmail.com');
+      }
+    }
+
+    // Shared Admin Master Workspaces (ensures instantaneous sync between Vercel, mobile, and AI Studio)
+    match /workspaces/{workspaceId} {
+      allow read, write: if request.auth != null && (request.auth.token.email == 'tazeemsiddiqui0786@gmail.com' || request.auth.token.email_verified == true);
+      
+      match /{allSubcollections=**} {
+        allow read, write: if request.auth != null && (request.auth.token.email == 'tazeemsiddiqui0786@gmail.com' || request.auth.token.email_verified == true);
+      }
+    }
+
+    // PIN-protected cloud vaults
     match /vaults/{vaultId} {
       allow read: if true;
       allow create: if request.resource.data.pinHash is string && request.resource.data.pinHash.size() > 10;
       allow update: if request.resource.data.pinHash == resource.data.pinHash;
       allow delete: if request.resource.data.pinHash == resource.data.pinHash;
-    }
-
-    // Authenticated user records
-    match /users/{userId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
-      
-      match /{allSubcollections=**} {
-        allow read, write: if request.auth != null && request.auth.uid == userId;
-      }
     }
   }
 }

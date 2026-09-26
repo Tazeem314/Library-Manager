@@ -4,22 +4,73 @@ import {
   GoogleAuthProvider,
   signInWithPopup,
   signOut,
-  onAuthStateChanged,
   User as FirebaseUser,
   Auth,
 } from 'firebase/auth';
 import {
-  initializeFirestore,
   getFirestore,
   doc,
   getDoc,
+  getDocFromServer,
   setDoc,
   onSnapshot,
   Firestore,
 } from 'firebase/firestore';
 import firebaseConfig from '../../firebase-applet-config.json';
-import { AppState } from '../types';
+import { AppState, Business } from '../types';
 import { isAuthorizedAdmin, getAccessDeniedMessage } from './authGuard';
+import { getCleanInitialData } from './demoData';
+
+export enum OperationType {
+  CREATE = 'create',
+  UPDATE = 'update',
+  DELETE = 'delete',
+  LIST = 'list',
+  GET = 'get',
+  WRITE = 'write',
+}
+
+export interface FirestoreErrorInfo {
+  error: string;
+  operationType: OperationType;
+  path: string | null;
+  authInfo: {
+    userId?: string | null;
+    email?: string | null;
+    emailVerified?: boolean | null;
+    isAnonymous?: boolean | null;
+    tenantId?: string | null;
+    providerInfo?: {
+      providerId?: string | null;
+      email?: string | null;
+    }[];
+  };
+}
+
+export function handleFirestoreError(
+  error: unknown,
+  operationType: OperationType,
+  path: string | null
+): void {
+  const errInfo: FirestoreErrorInfo = {
+    error: error instanceof Error ? error.message : String(error),
+    authInfo: {
+      userId: auth?.currentUser?.uid,
+      email: auth?.currentUser?.email,
+      emailVerified: auth?.currentUser?.emailVerified,
+      isAnonymous: auth?.currentUser?.isAnonymous,
+      tenantId: auth?.currentUser?.tenantId,
+      providerInfo:
+        auth?.currentUser?.providerData?.map((provider) => ({
+          providerId: provider.providerId,
+          email: provider.email,
+        })) || [],
+    },
+    operationType,
+    path,
+  };
+  console.error('Firestore Error:', JSON.stringify(errInfo));
+}
 
 export interface FirebaseConfigParams {
   apiKey: string;
@@ -62,7 +113,6 @@ export function getActiveFirebaseConfig(): FirebaseConfigParams {
   const custom = getStoredCustomFirebaseConfig();
   if (custom) return custom;
 
-  // Check for explicit VITE_FIREBASE_API_KEY override if provided (e.g. in custom build envs)
   const metaEnv = (import.meta as unknown as { env?: Record<string, string> }).env || {};
   const procEnv = typeof process !== 'undefined' && process.env ? process.env : {};
 
@@ -87,13 +137,12 @@ export function getActiveFirebaseConfig(): FirebaseConfigParams {
     };
   }
 
-  // Always fallback to the official provisioned Firebase config from firebase-applet-config.json
   return firebaseConfig as FirebaseConfigParams;
 }
 
 const activeConfig = getActiveFirebaseConfig();
 
-// Safely initialize Firebase App singleton without throwing top-level errors
+// Initialize Firebase App singleton
 let app: FirebaseApp | null = null;
 export let auth: Auth | null = null;
 export let googleProvider: GoogleAuthProvider | null = null;
@@ -108,18 +157,17 @@ try {
     ? activeConfig.firestoreDatabaseId 
     : undefined;
 
-  try {
-    if (customDbId) {
-      db = initializeFirestore(app, { ignoreUndefinedProperties: true }, customDbId);
-    } else {
-      db = initializeFirestore(app, { ignoreUndefinedProperties: true });
+  db = customDbId ? getFirestore(app, customDbId) : getFirestore(app);
+
+  // Test connection on boot per Firebase skill guidelines
+  const testConnDoc = doc(db, 'test', 'connection');
+  getDocFromServer(testConnDoc).catch((err) => {
+    if (err instanceof Error && err.message.includes('the client is offline')) {
+      console.warn('Firebase client is offline, working with cached/local storage.');
     }
-  } catch (initErr) {
-    // If already initialized with defaults, fallback to getFirestore
-    db = customDbId ? getFirestore(app, customDbId) : getFirestore(app);
-  }
+  });
 } catch (e) {
-  console.warn('Firebase initialization skipped or fell back to local offline mode:', e);
+  console.warn('Firebase initialization note:', e);
 }
 
 export type AuthUser = FirebaseUser;
@@ -132,11 +180,11 @@ export interface AuthState {
 
 /**
  * Sign in with Google popup (Gmail account)
- * Validates against the authorized administrator email whitelist
+ * Validates strictly against the authorized administrator whitelist
  */
 export async function signInWithGoogle(customAllowedEmail?: string): Promise<FirebaseUser> {
   if (!auth || !googleProvider) {
-    throw new Error('Firebase Authentication is currently offline. Please check your network or open in a new tab.');
+    throw new Error('Firebase Authentication is currently offline. Please check your network connection.');
   }
 
   try {
@@ -146,7 +194,6 @@ export async function signInWithGoogle(customAllowedEmail?: string): Promise<Fir
     // Strict Admin Authorization Check
     const isAuthorized = isAuthorizedAdmin(user.email, customAllowedEmail);
     if (!isAuthorized) {
-      // Immediately sign out from Firebase session to prevent unauthorized access and state locking
       try {
         await signOut(auth);
       } catch (signOutErr) {
@@ -157,8 +204,8 @@ export async function signInWithGoogle(customAllowedEmail?: string): Promise<Fir
 
     // Safely record/update authorized admin user profile in Firestore
     if (db) {
+      const userRef = doc(db, 'users', user.uid);
       try {
-        const userRef = doc(db, 'users', user.uid);
         await setDoc(
           userRef,
           {
@@ -172,7 +219,7 @@ export async function signInWithGoogle(customAllowedEmail?: string): Promise<Fir
           { merge: true }
         );
       } catch (profileErr) {
-        console.warn('Note: Could not immediately update user profile in Firestore:', profileErr);
+        handleFirestoreError(profileErr, OperationType.WRITE, `users/${user.uid}`);
       }
     }
 
@@ -186,33 +233,29 @@ export async function signInWithGoogle(customAllowedEmail?: string): Promise<Fir
       isInIframe = true;
     }
 
-    // If it is already an Access Denied error, re-throw as is
     if (err.message && err.message.includes('Access Denied')) {
       throw new Error(err.message);
     }
 
     if (err.code === 'auth/popup-closed-by-user') {
-      throw new Error('Sign-in window was closed. Please try again when ready.');
+      throw new Error('Sign-in window was closed. Please try again.');
     }
     if (err.code === 'auth/popup-blocked') {
       throw new Error(
         isInIframe
-          ? 'Sign-in pop-up was blocked inside the preview frame. Please open the app in a new browser tab to sign in.'
+          ? 'Sign-in pop-up was blocked inside the preview frame. Please open the app in a new browser window/tab to sign in.'
           : 'Sign-in pop-up was blocked by your browser. Please allow popups for this site.'
       );
     }
     if (err.code === 'auth/cancelled-popup-request') {
-      throw new Error('Previous sign-in request cancelled.');
+      throw new Error('Previous sign-in request was cancelled.');
     }
     if (err.code === 'auth/network-request-failed') {
       throw new Error('Network connection issue. Please check your internet connection.');
     }
-    if (err.code === 'auth/api-key-expired' || (err.message && err.message.toLowerCase().includes('api key expired'))) {
-      throw new Error('Google Firebase project API key needs renewal. In the meantime, your study hall data is safely saved on this device, and you can download offline backups from Settings.');
-    }
     if (err.code === 'auth/unauthorized-domain') {
       const currentHost = typeof window !== 'undefined' ? window.location.hostname : 'this domain';
-      throw new Error(`Domain "${currentHost}" is not authorized in your Firebase Project. Please add "${currentHost}" under Firebase Console -> Authentication -> Settings -> Authorized Domains.`);
+      throw new Error(`Domain "${currentHost}" is not authorized in your Firebase Project. Please add "${currentHost}" in Firebase Console -> Authentication -> Settings -> Authorized Domains.`);
     }
     throw new Error(err.message || 'Failed to sign in with Google. Please try again.');
   }
@@ -228,80 +271,91 @@ export async function logOutUser(): Promise<void> {
 }
 
 /**
- * Save current study hall AppState to Firestore for authenticated user
+ * Common shared workspace document path for seamless cross-device synchronization (Vercel <-> Google AI Studio <-> Mobile)
+ */
+const SHARED_WORKSPACE_PATH = 'workspaces/admin_main';
+
+export interface CloudStatePayload {
+  business: AppState['business'];
+  shifts: AppState['shifts'];
+  plans: AppState['plans'];
+  seats: AppState['seats'];
+  students: AppState['students'];
+  memberships: AppState['memberships'];
+  payments: AppState['payments'];
+  expenses: AppState['expenses'];
+  updatedAt: number;
+  updatedAtIso: string;
+}
+
+/**
+ * Save study hall AppState to Firestore for cross-device real-time sync
  */
 export async function saveUserStateToFirestore(
   userId: string,
-  state: AppState
+  state: AppState,
+  clientTimestamp?: number
 ): Promise<void> {
-  if (!userId || !db) return;
-  const workspaceRef = doc(db, 'users', userId, 'workspace', 'data');
-  // Deep-sanitize payload to remove any undefined values before writing to Firestore
-  const sanitized = JSON.parse(
-    JSON.stringify({
-      business: state.business,
-      shifts: state.shifts || [],
-      plans: state.plans || [],
-      seats: state.seats || [],
-      students: state.students || [],
-      memberships: state.memberships || [],
-      payments: state.payments || [],
-      expenses: state.expenses || [],
-      updatedAt: new Date().toISOString(),
+  if (!db) return;
+
+  const nowMs = clientTimestamp || Date.now();
+  const payload: CloudStatePayload = {
+    business: state.business,
+    shifts: state.shifts || [],
+    plans: state.plans || [],
+    seats: state.seats || [],
+    students: state.students || [],
+    memberships: state.memberships || [],
+    payments: state.payments || [],
+    expenses: state.expenses || [],
+    updatedAt: nowMs,
+    updatedAtIso: new Date(nowMs).toISOString(),
+  };
+
+  // Deep sanitize to prevent any undefined values
+  const sanitized = JSON.parse(JSON.stringify(payload));
+
+  const writePromises: Promise<unknown>[] = [];
+
+  // Write to shared admin workspace (primary cross-device hub)
+  const sharedWorkspaceRef = doc(db, 'workspaces', 'admin_main');
+  writePromises.push(
+    setDoc(sharedWorkspaceRef, sanitized, { merge: true }).catch((err) => {
+      handleFirestoreError(err, OperationType.WRITE, SHARED_WORKSPACE_PATH);
     })
   );
 
-  await setDoc(workspaceRef, sanitized, { merge: true });
+  // Also write to user-specific workspace
+  if (userId) {
+    const userWorkspaceRef = doc(db, 'users', userId, 'workspace', 'data');
+    writePromises.push(
+      setDoc(userWorkspaceRef, sanitized, { merge: true }).catch((err) => {
+        handleFirestoreError(err, OperationType.WRITE, `users/${userId}/workspace/data`);
+      })
+    );
+  }
+
+  await Promise.allSettled(writePromises);
 }
 
 /**
- * Fetch study hall AppState from Firestore for authenticated user
+ * Direct Server Fetch for study hall AppState from Firestore
  */
 export async function fetchUserStateFromFirestore(
   userId: string
-): Promise<AppState | null> {
-  if (!userId || !db) return null;
-  const workspaceRef = doc(db, 'users', userId, 'workspace', 'data');
-  const snapshot = await getDoc(workspaceRef);
+): Promise<{ state: AppState; updatedAt: number } | null> {
+  if (!db) return null;
 
-  if (snapshot.exists()) {
-    const data = snapshot.data();
-    if (data && Array.isArray(data.seats)) {
-      return {
-        business: data.business,
-        shifts: data.shifts || [],
-        plans: data.plans || [],
-        seats: data.seats || [],
-        students: data.students || [],
-        memberships: data.memberships || [],
-        payments: data.payments || [],
-        expenses: data.expenses || [],
-      } as AppState;
-    }
-  }
-
-  return null;
-}
-
-/**
- * Real-time listener for remote user state updates in Firestore
- */
-export function subscribeToUserState(
-  userId: string,
-  onUpdate: (state: AppState) => void,
-  onError?: (error: Error) => void
-): () => void {
-  if (!userId || !db) return () => {};
-
-  const workspaceRef = doc(db, 'users', userId, 'workspace', 'data');
-  const unsubscribe = onSnapshot(
-    workspaceRef,
-    (snapshot) => {
-      if (snapshot.exists()) {
-        const data = snapshot.data();
-        if (data && Array.isArray(data.seats)) {
-          const loaded: AppState = {
-            business: data.business,
+  // 1. First try shared admin main workspace
+  try {
+    const sharedRef = doc(db, 'workspaces', 'admin_main');
+    const snap = await getDocFromServer(sharedRef);
+    if (snap.exists()) {
+      const data = snap.data();
+      if (data && Array.isArray(data.seats)) {
+        return {
+          state: {
+            business: { ...getCleanInitialData().business, ...((data.business as Partial<Business>) || {}) },
             shifts: data.shifts || [],
             plans: data.plans || [],
             seats: data.seats || [],
@@ -309,16 +363,117 @@ export function subscribeToUserState(
             memberships: data.memberships || [],
             payments: data.payments || [],
             expenses: data.expenses || [],
+          },
+          updatedAt: typeof data.updatedAt === 'number' ? data.updatedAt : 0,
+        };
+      }
+    }
+  } catch (err) {
+    handleFirestoreError(err, OperationType.GET, SHARED_WORKSPACE_PATH);
+  }
+
+  // 2. Fallback to user-scoped workspace
+  if (userId) {
+    try {
+      const userRef = doc(db, 'users', userId, 'workspace', 'data');
+      const snap = await getDocFromServer(userRef);
+      if (snap.exists()) {
+        const data = snap.data();
+        if (data && Array.isArray(data.seats)) {
+          return {
+            state: {
+              business: { ...getCleanInitialData().business, ...((data.business as Partial<Business>) || {}) },
+              shifts: data.shifts || [],
+              plans: data.plans || [],
+              seats: data.seats || [],
+              students: data.students || [],
+              memberships: data.memberships || [],
+              payments: data.payments || [],
+              expenses: data.expenses || [],
+            },
+            updatedAt: typeof data.updatedAt === 'number' ? data.updatedAt : 0,
           };
-          onUpdate(loaded);
         }
       }
-    },
-    (err) => {
-      console.warn('Firestore subscription error:', err);
-      if (onError) onError(err);
+    } catch (err) {
+      handleFirestoreError(err, OperationType.GET, `users/${userId}/workspace/data`);
     }
-  );
+  }
 
-  return unsubscribe;
+  return null;
+}
+
+/**
+ * Real-time continuous listener for remote workspace updates across all devices
+ */
+export function subscribeToUserState(
+  userId: string,
+  onUpdate: (state: AppState, updatedAt: number) => void,
+  onError?: (error: Error) => void
+): () => void {
+  if (!db) return () => {};
+
+  const unsubscribers: (() => void)[] = [];
+
+  // Helper to parse snapshot data
+  const handleSnapshot = (snap: { exists: () => boolean; data: () => Record<string, unknown> | undefined }) => {
+    if (snap.exists()) {
+      const data = snap.data();
+      if (data && Array.isArray(data.seats)) {
+        const loadedState: AppState = {
+          business: { ...getCleanInitialData().business, ...((data.business as Partial<Business>) || {}) },
+          shifts: (data.shifts as AppState['shifts']) || [],
+          plans: (data.plans as AppState['plans']) || [],
+          seats: data.seats as AppState['seats'],
+          students: (data.students as AppState['students']) || [],
+          memberships: (data.memberships as AppState['memberships']) || [],
+          payments: (data.payments as AppState['payments']) || [],
+          expenses: (data.expenses as AppState['expenses']) || [],
+        };
+        const updatedAt = typeof data.updatedAt === 'number' ? data.updatedAt : Date.now();
+        onUpdate(loadedState, updatedAt);
+      }
+    }
+  };
+
+  // 1. Subscribe to shared admin workspace
+  try {
+    const sharedRef = doc(db, 'workspaces', 'admin_main');
+    const unsubShared = onSnapshot(
+      sharedRef,
+      (snapshot) => {
+        handleSnapshot(snapshot as never);
+      },
+      (err) => {
+        handleFirestoreError(err, OperationType.GET, SHARED_WORKSPACE_PATH);
+        if (onError) onError(err);
+      }
+    );
+    unsubscribers.push(unsubShared);
+  } catch (err) {
+    console.warn('Could not attach shared workspace listener:', err);
+  }
+
+  // 2. Also subscribe to user workspace if userId provided
+  if (userId) {
+    try {
+      const userRef = doc(db, 'users', userId, 'workspace', 'data');
+      const unsubUser = onSnapshot(
+        userRef,
+        (snapshot) => {
+          handleSnapshot(snapshot as never);
+        },
+        (err) => {
+          handleFirestoreError(err, OperationType.GET, `users/${userId}/workspace/data`);
+        }
+      );
+      unsubscribers.push(unsubUser);
+    } catch (err) {
+      console.warn('Could not attach user workspace listener:', err);
+    }
+  }
+
+  return () => {
+    unsubscribers.forEach((unsub) => unsub());
+  };
 }

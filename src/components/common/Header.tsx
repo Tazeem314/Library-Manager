@@ -4,6 +4,7 @@ import { MapPin, Calendar } from 'lucide-react';
 import { Business } from '../../types';
 import { PWAInstallButton } from './PWAInstallButton';
 import { ThemeToggle } from './ThemeToggle';
+import { CloudSyncBadge } from './CloudSyncBadge';
 import { AuthUser } from '../../services/firebase';
 
 interface HeaderProps {
@@ -16,6 +17,9 @@ interface HeaderProps {
 
 export const Header: React.FC<HeaderProps> = ({
   business,
+  authUser = null,
+  isSyncing = false,
+  onOpenAuthModal,
 }) => {
   const today = new Date().toLocaleDateString('en-IN', {
     weekday: 'short',
@@ -54,8 +58,17 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
         </div>
 
-        {/* Right: Theme Toggle, Install Button, Date */}
+        {/* Right: Cloud Sync, Theme Toggle, Install Button, Date */}
         <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
+          {onOpenAuthModal && (
+            <CloudSyncBadge
+              authUser={authUser}
+              isSyncing={isSyncing}
+              onClick={onOpenAuthModal}
+              variant="header"
+            />
+          )}
+
           <PWAInstallButton variant="header" />
 
           <ThemeToggle variant="header" />

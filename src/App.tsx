@@ -22,9 +22,10 @@ import { ReminderContext, ReminderType } from './utils/whatsapp';
 import { safeSessionStorage } from './utils/safeStorage';
 import { AuthSyncModal } from './components/common/AuthSyncModal';
 import { AdminAuthGate } from './components/auth/AdminAuthGate';
-import { AuthUser, subscribeToUserState, saveUserStateToFirestore, auth, logOutUser } from './services/firebase';
+import { AuthUser, auth, logOutUser } from './services/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
 import { PRIMARY_ADMIN_EMAIL, isAuthorizedAdmin } from './services/authGuard';
+import { useRealtimeSync } from './hooks/useRealtimeSync';
 
 function AppContent() {
   const [showSplash, setShowSplash] = useState(false);
@@ -33,7 +34,6 @@ function AppContent() {
     setShowSplash(false);
   }, []);
 
-  const [state, setState] = useState<AppState>(() => loadAppState());
   const [activeTab, setActiveTab] = useState<TabType>('dashboard');
   const [moreSubView, setMoreSubView] = useState<MoreSubView>('menu');
 
@@ -41,12 +41,38 @@ function AppContent() {
   const [authUser, setAuthUser] = useState<AuthUser | null>(null);
   const [authChecked, setAuthChecked] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
-  const [isCloudSyncing, setIsCloudSyncing] = useState(false);
+
+  // Toasts
+  const [toasts, setToasts] = useState<ToastMessage[]>([]);
+
+  const addToast = useCallback((message: string, type: 'success' | 'error' | 'info' = 'success') => {
+    const id = `${Date.now()}-${Math.random().toString(36).substr(2, 4)}`;
+    setToasts((prev) => [...prev, { id, message, type }]);
+    setTimeout(() => {
+      setToasts((prev) => prev.filter((t) => t.id !== id));
+    }, 3500);
+  }, []);
+
+  const dismissToast = useCallback((id: string) => {
+    setToasts((prev) => prev.filter((t) => t.id !== id));
+  }, []);
 
   // Authorized Admin Whitelist Check
-  const configuredOwnerEmail = (state.business?.ownerEmail || state.business?.email || PRIMARY_ADMIN_EMAIL).trim().toLowerCase();
-  const isOwnerAuthorized = Boolean(authUser && isAuthorizedAdmin(authUser.email, configuredOwnerEmail));
+  const isOwnerAuthorized = Boolean(authUser && isAuthorizedAdmin(authUser.email, PRIMARY_ADMIN_EMAIL));
   const isUnauthorizedUser = authUser && !isOwnerAuthorized ? authUser : null;
+
+  // Rock-solid Realtime Multi-Device Sync Engine
+  const {
+    state,
+    setState,
+    isSyncing: isCloudSyncing,
+    lastSyncedAt,
+    forceSync: handleForceSync,
+  } = useRealtimeSync({
+    authUser,
+    isOwnerAuthorized,
+    onToast: addToast,
+  });
 
   // Listen to Auth State with safety fallback timer against loading loops
   useEffect(() => {
@@ -80,68 +106,6 @@ function AppContent() {
       unsubscribe();
     };
   }, []);
-
-  // Toasts
-  const [toasts, setToasts] = useState<ToastMessage[]>([]);
-
-  const addToast = useCallback((message: string, type: 'success' | 'error' | 'info' = 'success') => {
-    const id = `${Date.now()}-${Math.random().toString(36).substr(2, 4)}`;
-    setToasts((prev) => [...prev, { id, message, type }]);
-    setTimeout(() => {
-      setToasts((prev) => prev.filter((t) => t.id !== id));
-    }, 3500);
-  }, []);
-
-  const dismissToast = useCallback((id: string) => {
-    setToasts((prev) => prev.filter((t) => t.id !== id));
-  }, []);
-
-  // Immediate state persistence to LocalStorage
-  useEffect(() => {
-    saveAppState(state);
-  }, [state]);
-
-  // Background Auto-Sync to Cloud Vault whenever data changes (ONLY for authorized Admin)
-  const isInitialSyncMount = useRef(true);
-  useEffect(() => {
-    if (isInitialSyncMount.current) {
-      isInitialSyncMount.current = false;
-      return;
-    }
-    if (!authUser || !isOwnerAuthorized) return;
-
-    const timer = setTimeout(async () => {
-      try {
-        setIsCloudSyncing(true);
-        await saveUserStateToFirestore(authUser.uid, state);
-      } catch (err) {
-        console.warn('Background auto-sync to cloud failed:', err);
-      } finally {
-        setIsCloudSyncing(false);
-      }
-    }, 600);
-
-    return () => clearTimeout(timer);
-  }, [state, authUser, isOwnerAuthorized]);
-
-  // Real-time synchronization listener across devices (ONLY for authorized Admin)
-  useEffect(() => {
-    if (!authUser || !isOwnerAuthorized) return;
-
-    const unsubscribe = subscribeToUserState(
-      authUser.uid,
-      (remoteState) => {
-        if (remoteState && Array.isArray(remoteState.seats) && remoteState.seats.length > 0) {
-          setState(remoteState);
-        }
-      },
-      (err) => {
-        console.warn('Realtime sync subscriber error:', err);
-      }
-    );
-
-    return () => unsubscribe();
-  }, [authUser?.uid, isOwnerAuthorized]);
 
   // Modals state
   const [isAddStudentOpen, setIsAddStudentOpen] = useState(false);
@@ -837,6 +801,9 @@ function AppContent() {
                   onReplaySplash={() => setShowSplash(true)}
                   authUser={authUser}
                   onOpenAuthModal={() => setIsAuthModalOpen(true)}
+                  onForceSync={handleForceSync}
+                  isSyncing={isCloudSyncing}
+                  lastSyncedAt={lastSyncedAt}
                 />
               )}
             </motion.div>
@@ -904,6 +871,9 @@ function AppContent() {
         onSignIn={(user) => setAuthUser(user)}
         onSignOut={() => setAuthUser(null)}
         onToast={(msg, type) => addToast(msg, type)}
+        onForceSync={handleForceSync}
+        isSyncing={isCloudSyncing}
+        lastSyncedAt={lastSyncedAt}
       />
 
       {/* Offline Connectivity Indicator */}

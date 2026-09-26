@@ -25,6 +25,7 @@ import { PWAInstallButton } from '../common/PWAInstallButton';
 import { ThemeToggle } from '../common/ThemeToggle';
 import { exportAppStateToJson, validateAndRestoreState } from '../../services/storage';
 import { AuthUser } from '../../services/firebase';
+import { RefreshCw } from 'lucide-react';
 
 interface MoreViewProps {
   state: AppState;
@@ -44,6 +45,9 @@ interface MoreViewProps {
   onReplaySplash?: () => void;
   authUser?: AuthUser | null;
   onOpenAuthModal?: () => void;
+  onForceSync?: () => Promise<void> | void;
+  isSyncing?: boolean;
+  lastSyncedAt?: Date | null;
 }
 
 export const MoreView: React.FC<MoreViewProps> = ({
@@ -64,6 +68,9 @@ export const MoreView: React.FC<MoreViewProps> = ({
   onReplaySplash,
   authUser = null,
   onOpenAuthModal,
+  onForceSync,
+  isSyncing = false,
+  lastSyncedAt,
 }) => {
   const [confirmResetClean, setConfirmResetClean] = useState(false);
   const [confirmLoadSample, setConfirmLoadSample] = useState(false);
@@ -218,18 +225,37 @@ export const MoreView: React.FC<MoreViewProps> = ({
 
           <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
             {authUser
-              ? 'Your library data is protected and automatically synced with your authorized Google cloud account. Sign in on any authorized phone or laptop to access this library.'
+              ? 'Your library data is backed up and synchronized in real-time across all your devices (phone, laptop, Vercel, and AI Studio).'
               : 'Safely sync your library across multiple devices by signing in with your authorized administrator Google account.'}
           </p>
 
-          <div className="pt-1">
+          {authUser && lastSyncedAt && (
+            <div className="text-[11px] text-slate-500 dark:text-slate-400 flex items-center gap-1.5 font-medium">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+              <span>Last synchronized: {lastSyncedAt.toLocaleTimeString()}</span>
+            </div>
+          )}
+
+          <div className="pt-1 flex items-center gap-2 flex-wrap">
+            {authUser && onForceSync && (
+              <button
+                type="button"
+                onClick={() => onForceSync()}
+                disabled={isSyncing}
+                className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold shadow-xs transition-colors cursor-pointer disabled:opacity-60"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin' : ''}`} />
+                <span>{isSyncing ? 'Syncing...' : 'Sync Cloud Now'}</span>
+              </button>
+            )}
+
             <button
               type="button"
               onClick={onOpenAuthModal}
-              className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold shadow-xs transition-colors"
+              className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold shadow-xs transition-colors cursor-pointer"
             >
               <Cloud className="w-3.5 h-3.5" />
-              <span>{authUser ? 'Manage Google Account Sync' : 'Sign in to Sync with Google'}</span>
+              <span>{authUser ? 'Account & Devices' : 'Sign in to Sync with Google'}</span>
             </button>
           </div>
         </div>

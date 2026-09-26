@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Cloud, AlertTriangle, LogOut, CheckCircle2, ShieldCheck } from 'lucide-react';
+import { X, Cloud, AlertTriangle, LogOut, CheckCircle2, RefreshCw } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { AppState } from '../../types';
 import { 
@@ -17,6 +17,9 @@ interface AuthSyncModalProps {
   onSignIn: (user: AuthUser) => void;
   onSignOut: () => void;
   onToast: (msg: string, type: 'success' | 'error' | 'info') => void;
+  onForceSync?: () => Promise<void> | void;
+  isSyncing?: boolean;
+  lastSyncedAt?: Date | null;
 }
 
 export const AuthSyncModal: React.FC<AuthSyncModalProps> = ({
@@ -26,7 +29,10 @@ export const AuthSyncModal: React.FC<AuthSyncModalProps> = ({
   authUser,
   onSignIn,
   onSignOut,
-  onToast
+  onToast,
+  onForceSync,
+  isSyncing = false,
+  lastSyncedAt,
 }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -73,6 +79,12 @@ export const AuthSyncModal: React.FC<AuthSyncModalProps> = ({
     }
   };
 
+  const handleManualSyncClick = async () => {
+    if (onForceSync) {
+      await onForceSync();
+    }
+  };
+
   return (
     <AnimatePresence>
       {isOpen && (
@@ -99,7 +111,7 @@ export const AuthSyncModal: React.FC<AuthSyncModalProps> = ({
             <div className="flex items-center justify-between p-4 sm:p-5 border-b border-neutral-100 dark:border-neutral-800">
               <h2 id="auth-modal-title" className="text-base font-bold text-neutral-900 dark:text-white flex items-center gap-2">
                 <Cloud className="w-4 h-4 text-neutral-900 dark:text-white" />
-                Cloud Backup & Sync
+                Live Real-Time Cloud Sync
               </h2>
               <button
                 onClick={onClose}
@@ -119,39 +131,60 @@ export const AuthSyncModal: React.FC<AuthSyncModalProps> = ({
 
               {authUser ? (
                 <div className="space-y-4">
-                  <div className="bg-neutral-100 dark:bg-neutral-800/80 border border-neutral-200 dark:border-neutral-700 rounded-xl p-4 flex items-center gap-3.5">
-                    {authUser.photoURL ? (
-                      <img src={authUser.photoURL} alt={authUser.displayName || 'User'} className="w-10 h-10 rounded-full border border-neutral-300 dark:border-neutral-700" />
-                    ) : (
-                      <div className="w-10 h-10 rounded-full bg-neutral-900 text-white flex items-center justify-center font-bold text-sm">
-                        {(authUser.displayName || authUser.email || 'U')[0].toUpperCase()}
-                      </div>
-                    )}
-                    <div className="min-w-0">
-                      <div className="font-bold text-sm text-neutral-900 dark:text-white truncate">
-                        {authUser.displayName || 'Authorized Administrator'}
-                      </div>
-                      <div className="text-xs text-neutral-500 dark:text-neutral-400 truncate">
-                        Admin Session Connected
+                  <div className="bg-neutral-100 dark:bg-neutral-800/80 border border-neutral-200 dark:border-neutral-700 rounded-xl p-4 flex items-center justify-between">
+                    <div className="flex items-center gap-3.5 min-w-0">
+                      {authUser.photoURL ? (
+                        <img src={authUser.photoURL} alt={authUser.displayName || 'User'} className="w-10 h-10 rounded-full border border-neutral-300 dark:border-neutral-700" />
+                      ) : (
+                        <div className="w-10 h-10 rounded-full bg-neutral-900 text-white flex items-center justify-center font-bold text-sm">
+                          {(authUser.displayName || 'A')[0].toUpperCase()}
+                        </div>
+                      )}
+                      <div className="min-w-0">
+                        <div className="font-bold text-sm text-neutral-900 dark:text-white truncate">
+                          {authUser.displayName || 'Authorized Administrator'}
+                        </div>
+                        <div className="text-xs text-emerald-600 dark:text-emerald-400 font-medium truncate flex items-center gap-1">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                          Real-time Sync Active
+                        </div>
                       </div>
                     </div>
+
+                    {onForceSync && (
+                      <button
+                        type="button"
+                        onClick={handleManualSyncClick}
+                        disabled={isSyncing}
+                        className="px-3 py-1.5 rounded-lg bg-neutral-900 hover:bg-neutral-800 text-white text-xs font-semibold flex items-center gap-1.5 transition-all active:scale-[0.98] disabled:opacity-60 shrink-0"
+                        title="Force sync now"
+                      >
+                        <RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin' : ''}`} />
+                        <span>{isSyncing ? 'Syncing...' : 'Sync Now'}</span>
+                      </button>
+                    )}
                   </div>
 
-                  <div className="space-y-2">
+                  <div className="space-y-2 bg-neutral-50 dark:bg-neutral-850 p-3 rounded-xl border border-neutral-200 dark:border-neutral-800">
                     <div className="flex items-start gap-2 text-xs text-neutral-600 dark:text-neutral-300">
-                      <CheckCircle2 className="w-4 h-4 text-neutral-900 dark:text-white shrink-0 mt-0.5" />
-                      <p>Your library seats, students, and financial logs sync live to Firestore.</p>
+                      <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
+                      <p><strong>Multi-Device Real-time Sync:</strong> Changes made on Vercel, phone, or laptop update instantly in Google AI Studio.</p>
                     </div>
                     <div className="flex items-start gap-2 text-xs text-neutral-600 dark:text-neutral-300">
-                      <CheckCircle2 className="w-4 h-4 text-neutral-900 dark:text-white shrink-0 mt-0.5" />
-                      <p>Restores instantly when logging in from any mobile or desktop device.</p>
+                      <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
+                      <p><strong>Off-Screen Auto-Refresh:</strong> Automatically pulls latest changes whenever you switch back to this tab.</p>
                     </div>
+                    {lastSyncedAt && (
+                      <div className="text-[11px] text-neutral-400 pt-1 border-t border-neutral-200 dark:border-neutral-750">
+                        Last synced: {lastSyncedAt.toLocaleTimeString()}
+                      </div>
+                    )}
                   </div>
 
                   <button
                     onClick={handleSignOut}
                     disabled={loading}
-                    className="w-full flex items-center justify-center gap-2 bg-neutral-100 hover:bg-neutral-200 dark:bg-neutral-800 dark:hover:bg-neutral-700 text-neutral-800 dark:text-neutral-200 font-semibold py-2.5 px-4 rounded-xl text-xs transition-all active:scale-[0.98] disabled:opacity-70"
+                    className="w-full flex items-center justify-center gap-2 bg-neutral-100 hover:bg-neutral-200 dark:bg-neutral-800 dark:hover:bg-neutral-700 text-neutral-800 dark:text-neutral-200 font-semibold py-2.5 px-4 rounded-xl text-xs transition-all active:scale-[0.98] disabled:opacity-70 cursor-pointer"
                   >
                     {loading ? (
                       <span>Signing Out...</span>
@@ -178,7 +211,7 @@ export const AuthSyncModal: React.FC<AuthSyncModalProps> = ({
                   <button
                     onClick={handleSignIn}
                     disabled={loading}
-                    className="w-full flex items-center justify-center gap-2.5 bg-black text-white dark:bg-white dark:text-black hover:bg-neutral-800 dark:hover:bg-neutral-200 font-semibold py-2.5 px-4 rounded-xl text-xs transition-all active:scale-[0.98] disabled:opacity-70 shadow-2xs"
+                    className="w-full flex items-center justify-center gap-2.5 bg-black text-white dark:bg-white dark:text-black hover:bg-neutral-800 dark:hover:bg-neutral-200 font-semibold py-2.5 px-4 rounded-xl text-xs transition-all active:scale-[0.98] disabled:opacity-70 shadow-2xs cursor-pointer"
                   >
                     {loading ? (
                       <span>Connecting Google Account...</span>

@@ -3,8 +3,30 @@ import { getCleanInitialData, getSampleDemoData } from './demoData';
 import { safeLocalStorage } from '../utils/safeStorage';
 
 const STORAGE_KEY = 'studyspace_manager_clean_v2';
+const TIMESTAMP_KEY = 'studyspace_last_updated_timestamp';
 
 let cachedState: AppState | null = null;
+
+export function getLastLocalUpdateTimestamp(): number {
+  try {
+    const raw = safeLocalStorage.getItem(TIMESTAMP_KEY);
+    if (raw) {
+      const num = parseInt(raw, 10);
+      if (!isNaN(num)) return num;
+    }
+  } catch (err) {
+    console.warn('Failed to read timestamp from storage:', err);
+  }
+  return 0;
+}
+
+export function setLastLocalUpdateTimestamp(timestamp: number): void {
+  try {
+    safeLocalStorage.setItem(TIMESTAMP_KEY, timestamp.toString());
+  } catch (err) {
+    console.warn('Failed to write timestamp to storage:', err);
+  }
+}
 
 export function loadAppState(): AppState {
   if (cachedState) {
@@ -12,7 +34,6 @@ export function loadAppState(): AppState {
   }
 
   try {
-    // Purge any old demo data storage keys so the app begins completely clean
     safeLocalStorage.removeItem('studyspace_manager_data_v1');
     safeLocalStorage.removeItem('studyspace_manager_clean_v1');
 
@@ -37,17 +58,19 @@ export function loadAppState(): AppState {
     console.error('Failed to parse stored state, falling back to clean data', err);
   }
 
-  // Clean fresh start with zero demo data
   const initial = getCleanInitialData();
   cachedState = initial;
-  saveAppState(initial);
+  saveAppState(initial, Date.now());
   return initial;
 }
 
-export function saveAppState(state: AppState): void {
+export function saveAppState(state: AppState, timestamp?: number): void {
   cachedState = state;
   try {
     safeLocalStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    if (timestamp) {
+      setLastLocalUpdateTimestamp(timestamp);
+    }
   } catch (err) {
     console.error('Failed to save state to localStorage', err);
   }
@@ -56,6 +79,7 @@ export function saveAppState(state: AppState): void {
 export function resetAppState(): AppState {
   try {
     safeLocalStorage.removeItem(STORAGE_KEY);
+    safeLocalStorage.removeItem(TIMESTAMP_KEY);
     safeLocalStorage.removeItem('studyspace_manager_data_v1');
     safeLocalStorage.removeItem('studyspace_manager_clean_v1');
   } catch (err) {
@@ -63,14 +87,14 @@ export function resetAppState(): AppState {
   }
   const initial = getCleanInitialData();
   cachedState = initial;
-  saveAppState(initial);
+  saveAppState(initial, Date.now());
   return initial;
 }
 
 export function loadSampleDemoState(): AppState {
   const sample = getSampleDemoData();
   cachedState = sample;
-  saveAppState(sample);
+  saveAppState(sample, Date.now());
   return sample;
 }
 
@@ -118,8 +142,9 @@ export function validateAndRestoreState(parsed: unknown): AppState {
     expenses: Array.isArray(candidate.expenses) ? candidate.expenses : [],
   };
 
+  const now = Date.now();
   cachedState = restoredState;
-  saveAppState(restoredState);
+  saveAppState(restoredState, now);
   return restoredState;
 }
 
@@ -130,4 +155,3 @@ if (typeof window !== 'undefined') {
     window.location.reload();
   };
 }
-
