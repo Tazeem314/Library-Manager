@@ -7,7 +7,6 @@ import {
   logOutUser, 
   AuthUser 
 } from '../../services/firebase';
-import { PRIMARY_ADMIN_EMAIL, isAuthorizedAdmin, getAccessDeniedMessage } from '../../services/authGuard';
 
 interface AuthSyncModalProps {
   isOpen: boolean;
@@ -25,7 +24,7 @@ interface AuthSyncModalProps {
 export const AuthSyncModal: React.FC<AuthSyncModalProps> = ({
   isOpen,
   onClose,
-  currentState,
+  currentState: _currentState,
   authUser,
   onSignIn,
   onSignOut,
@@ -37,21 +36,13 @@ export const AuthSyncModal: React.FC<AuthSyncModalProps> = ({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const targetAdmin = (currentState.business?.ownerEmail || currentState.business?.email || PRIMARY_ADMIN_EMAIL).trim().toLowerCase();
-
   const handleSignIn = async () => {
     setError('');
     setLoading(true);
     try {
-      const user = await signInWithGoogle(targetAdmin);
-
-      if (!isAuthorizedAdmin(user.email, targetAdmin)) {
-        await logOutUser();
-        throw new Error(getAccessDeniedMessage());
-      }
-
+      const user = await signInWithGoogle();
       onSignIn(user);
-      onToast('Signed in successfully as Administrator', 'success');
+      onToast(`Welcome back, ${user.displayName || user.email || 'User'}!`, 'success');
       onClose();
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Failed to sign in with Google';
@@ -142,8 +133,13 @@ export const AuthSyncModal: React.FC<AuthSyncModalProps> = ({
                       )}
                       <div className="min-w-0">
                         <div className="font-bold text-sm text-neutral-900 dark:text-white truncate">
-                          {authUser.displayName || 'Authorized Administrator'}
+                          {authUser.displayName || authUser.email || 'StudySpace User'}
                         </div>
+                        {authUser.email && authUser.displayName && (
+                          <div className="text-[11px] text-neutral-500 dark:text-neutral-400 truncate">
+                            {authUser.email}
+                          </div>
+                        )}
                         <div className="text-xs text-emerald-600 dark:text-emerald-400 font-medium truncate flex items-center gap-1">
                           <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
                           Real-time Sync Active

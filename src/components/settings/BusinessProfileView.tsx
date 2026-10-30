@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
-import { Building2, User, Phone, Mail, MapPin, CheckCircle2, ShieldCheck, Lock } from 'lucide-react';
+import { Building2, User, Phone, Mail, MapPin, CheckCircle2, ShieldCheck, Cloud } from 'lucide-react';
 import { Business } from '../../types';
-import { PRIMARY_ADMIN_EMAIL } from '../../services/authGuard';
 
 interface BusinessProfileViewProps {
   business: Business;
@@ -14,8 +13,8 @@ export const BusinessProfileView: React.FC<BusinessProfileViewProps> = ({
 }) => {
   const [formData, setFormData] = useState<Business>({
     ...business,
-    ownerEmail: business.ownerEmail || business.email || PRIMARY_ADMIN_EMAIL,
-    requireAdminAuth: business.requireAdminAuth !== false,
+    ownerEmail: business.ownerEmail || business.email || '',
+    requireAdminAuth: false,
   });
   const [saved, setSaved] = useState(false);
 
@@ -44,36 +43,36 @@ export const BusinessProfileView: React.FC<BusinessProfileViewProps> = ({
         {saved && (
           <div className="p-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300 text-xs font-semibold flex items-center gap-2">
             <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
-            <span>Library details and owner access rules saved successfully!</span>
+            <span>Library details saved successfully!</span>
           </div>
         )}
 
-        {/* Owner Security Restriction Box */}
+        {/* Multi-User Open Access Status Box */}
         <div className="p-4 rounded-2xl bg-neutral-100/90 dark:bg-neutral-850/80 border border-neutral-200 dark:border-neutral-700 space-y-3">
           <div className="flex items-center gap-2">
             <ShieldCheck className="w-5 h-5 text-neutral-900 dark:text-white shrink-0" />
             <span className="text-xs font-bold text-neutral-900 dark:text-white uppercase tracking-wider">
-              Single-Owner Login Protection
+              Open Access & Cloud Sync
             </span>
           </div>
           <p className="text-xs text-neutral-600 dark:text-neutral-300 leading-relaxed">
-            Only the registered library administrator account can unlock and manage this dashboard. Any unauthorized account is automatically rejected by the security gate.
+            Anyone with a Google account can sign in to this web app and manage seats, students, and payments. Real-time synchronization is enabled across all authorized devices.
           </p>
 
           <div className="p-3 bg-white dark:bg-slate-900 rounded-xl border border-neutral-200 dark:border-neutral-800 flex items-center justify-between">
             <div className="flex items-center gap-2.5">
-              <Lock className="w-4 h-4 text-emerald-500 shrink-0" />
+              <Cloud className="w-4 h-4 text-emerald-500 shrink-0" />
               <div>
                 <div className="text-xs font-semibold text-slate-900 dark:text-white">
-                  Admin Whitelist Security Status
+                  Access Restrictions
                 </div>
                 <div className="text-[11px] text-slate-500 dark:text-slate-400">
-                  Protected & active (Configured in core security guard)
+                  Open login enabled (No email restrictions)
                 </div>
               </div>
             </div>
             <span className="px-2.5 py-1 text-[11px] font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-100/80 dark:bg-emerald-950/80 rounded-full border border-emerald-300 dark:border-emerald-800">
-              Active & Protected
+              Open to All
             </span>
           </div>
         </div>

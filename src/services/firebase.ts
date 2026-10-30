@@ -18,7 +18,6 @@ import {
 } from 'firebase/firestore';
 import firebaseConfig from '../../firebase-applet-config.json';
 import { AppState, Business } from '../types';
-import { isAuthorizedAdmin, getAccessDeniedMessage } from './authGuard';
 import { getCleanInitialData } from './demoData';
 
 export enum OperationType {
@@ -180,9 +179,9 @@ export interface AuthState {
 
 /**
  * Sign in with Google popup (Gmail account)
- * Validates strictly against the authorized administrator whitelist
+ * Open to any Google account with no email restrictions.
  */
-export async function signInWithGoogle(customAllowedEmail?: string): Promise<FirebaseUser> {
+export async function signInWithGoogle(): Promise<FirebaseUser> {
   if (!auth || !googleProvider) {
     throw new Error('Firebase Authentication is currently offline. Please check your network connection.');
   }
@@ -191,18 +190,7 @@ export async function signInWithGoogle(customAllowedEmail?: string): Promise<Fir
     const result = await signInWithPopup(auth, googleProvider);
     const user = result.user;
 
-    // Strict Admin Authorization Check
-    const isAuthorized = isAuthorizedAdmin(user.email, customAllowedEmail);
-    if (!isAuthorized) {
-      try {
-        await signOut(auth);
-      } catch (signOutErr) {
-        console.warn('Silent sign-out cleanup error:', signOutErr);
-      }
-      throw new Error(getAccessDeniedMessage());
-    }
-
-    // Safely record/update authorized admin user profile in Firestore
+    // Safely record/update user profile in Firestore
     if (db) {
       const userRef = doc(db, 'users', user.uid);
       try {
@@ -213,7 +201,6 @@ export async function signInWithGoogle(customAllowedEmail?: string): Promise<Fir
             email: user.email || '',
             displayName: user.displayName || '',
             photoURL: user.photoURL || '',
-            role: 'admin',
             lastLoginAt: new Date().toISOString(),
           },
           { merge: true }

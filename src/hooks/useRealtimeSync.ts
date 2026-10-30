@@ -15,13 +15,12 @@ import {
 
 export interface UseRealtimeSyncOptions {
   authUser: AuthUser | null;
-  isOwnerAuthorized: boolean;
+  isOwnerAuthorized?: boolean;
   onToast?: (msg: string, type: 'success' | 'error' | 'info') => void;
 }
 
 export function useRealtimeSync({
   authUser,
-  isOwnerAuthorized,
   onToast,
 }: UseRealtimeSyncOptions) {
   const [state, setStateInternal] = useState<AppState>(() => loadAppState());
@@ -66,7 +65,7 @@ export function useRealtimeSync({
       return;
     }
 
-    if (!authUser || !isOwnerAuthorized) return;
+    if (!authUser) return;
 
     const currentTimestamp = localTimestampRef.current;
     setIsSyncing(true);
@@ -86,11 +85,11 @@ export function useRealtimeSync({
     }, 400);
 
     return () => clearTimeout(debounceTimer);
-  }, [state, authUser, isOwnerAuthorized]);
+  }, [state, authUser]);
 
   // Real-time remote updates subscription
   useEffect(() => {
-    if (!authUser || !isOwnerAuthorized) {
+    if (!authUser) {
       setSyncStatus('idle');
       return;
     }
@@ -159,11 +158,11 @@ export function useRealtimeSync({
     return () => {
       unsubscribe();
     };
-  }, [authUser?.uid, isOwnerAuthorized]);
+  }, [authUser?.uid]);
 
   // Off-screen & tab visibility / focus real-time sync handler
   useEffect(() => {
-    if (!authUser || !isOwnerAuthorized) return;
+    if (!authUser) return;
 
     const handleRevalidation = async () => {
       try {
@@ -216,11 +215,11 @@ export function useRealtimeSync({
       window.removeEventListener('focus', handleWindowFocus);
       window.removeEventListener('online', handleOnline);
     };
-  }, [authUser, isOwnerAuthorized, onToast]);
+  }, [authUser, onToast]);
 
   // Manual Force Pull / Push
   const forceSync = useCallback(async () => {
-    if (!authUser || !isOwnerAuthorized) {
+    if (!authUser) {
       if (onToast) onToast('Please sign in to sync with cloud', 'info');
       return;
     }
@@ -257,7 +256,7 @@ export function useRealtimeSync({
     } finally {
       setIsSyncing(false);
     }
-  }, [authUser, isOwnerAuthorized, onToast]);
+  }, [authUser, onToast]);
 
   return {
     state,

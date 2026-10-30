@@ -22,9 +22,8 @@ import { ReminderContext, ReminderType } from './utils/whatsapp';
 import { safeSessionStorage } from './utils/safeStorage';
 import { AuthSyncModal } from './components/common/AuthSyncModal';
 import { AdminAuthGate } from './components/auth/AdminAuthGate';
-import { AuthUser, auth, logOutUser } from './services/firebase';
+import { AuthUser, auth } from './services/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
-import { PRIMARY_ADMIN_EMAIL, isAuthorizedAdmin } from './services/authGuard';
 import { useRealtimeSync } from './hooks/useRealtimeSync';
 
 function AppContent() {
@@ -41,6 +40,7 @@ function AppContent() {
   const [authUser, setAuthUser] = useState<AuthUser | null>(null);
   const [authChecked, setAuthChecked] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [isGuestMode, setIsGuestMode] = useState(false);
 
   // Toasts
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
@@ -57,11 +57,7 @@ function AppContent() {
     setToasts((prev) => prev.filter((t) => t.id !== id));
   }, []);
 
-  // Authorized Admin Whitelist Check
-  const isOwnerAuthorized = Boolean(authUser && isAuthorizedAdmin(authUser.email, PRIMARY_ADMIN_EMAIL));
-  const isUnauthorizedUser = authUser && !isOwnerAuthorized ? authUser : null;
-
-  // Rock-solid Realtime Multi-Device Sync Engine
+  // Realtime Multi-Device Sync Engine (Open to any signed-in user)
   const {
     state,
     setState,
@@ -70,7 +66,6 @@ function AppContent() {
     forceSync: handleForceSync,
   } = useRealtimeSync({
     authUser,
-    isOwnerAuthorized,
     onToast: addToast,
   });
 
@@ -642,20 +637,18 @@ function AppContent() {
     );
   }
 
-  // Single-Owner Login Gate: If unauthenticated or unauthorized Gmail, show Login Page
-  if (!authUser || !isOwnerAuthorized) {
+  // Open Login Gate: If unauthenticated and not in guest mode, show Login Page
+  if (!authUser && !isGuestMode) {
     return (
       <AdminAuthGate
-        businessName={state.business?.name || 'Study Space'}
-        allowedEmail={state.business?.ownerEmail || PRIMARY_ADMIN_EMAIL}
+        businessName={state.business?.name || 'StudySpace Manager'}
         onAuthenticated={(user) => {
           setAuthUser(user);
-          addToast(`Welcome back, Admin ${user.displayName || ''}!`, 'success');
+          addToast(`Welcome, ${user.displayName || user.email || 'User'}!`, 'success');
         }}
-        unauthorizedUser={isUnauthorizedUser}
-        onSignOut={async () => {
-          await logOutUser();
-          setAuthUser(null);
+        onContinueGuest={() => {
+          setIsGuestMode(true);
+          addToast('Continuing in guest mode', 'info');
         }}
       />
     );
